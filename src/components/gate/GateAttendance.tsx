@@ -9,11 +9,16 @@ import {
   RotateCcw,
   UserCheck,
   Eye,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Camera,
+  Video,
+  VideoOff,
+  SwitchCamera
 } from 'lucide-react';
 import { useData } from '../../context/DataContext';
 import { gateFaceLivenessVerifier } from '../../ai-models/gate/faceLiveness';
 import { biometricHashVerifier } from '../../ai-models/gate/biometricHashVerifier';
+import { gateFaceDetector } from '../../ai-models/gate/faceDetector';
 
 export const GateAttendance: React.FC = () => {
   const { institutes, attendanceEvents, addAttendanceEvent } = useData();
@@ -22,6 +27,13 @@ export const GateAttendance: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<'beneficiary' | 'student' | 'resident' | 'staff' | 'instructor'>('beneficiary');
   const [consentChecked, setConsentChecked] = useState(true);
 
+  // Phone Camera States
+  const [cameraActive, setCameraActive] = useState<boolean>(false);
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const streamRef = React.useRef<MediaStream | null>(null);
+
   // Verification step statuses
   const [verifying, setVerifying] = useState(false);
   const [livenessStatus, setLivenessStatus] = useState<'idle' | 'passed' | 'failed'>('idle');
@@ -29,6 +41,51 @@ export const GateAttendance: React.FC = () => {
   const [latestToken, setLatestToken] = useState<string | null>(null);
 
   const activeInstitute = institutes.find(i => i.instituteId === selectedInstId) || institutes[0];
+
+  // Starts real camera on phone or desktop
+  const startCamera = async (mode = facingMode) => {
+    setCameraError(null);
+    try {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: mode, width: { ideal: 640 }, height: { ideal: 480 } },
+        audio: false,
+      });
+      streamRef.current = stream;
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
+      setCameraActive(true);
+    } catch (err: any) {
+      console.warn('[Phone Camera] getUserMedia error:', err);
+      setCameraError('Camera access denied or unavailable. You can still test in simulated mode.');
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    setCameraActive(false);
+  };
+
+  const toggleCameraFacing = async () => {
+    const nextMode = facingMode === 'user' ? 'environment' : 'user';
+    setFacingMode(nextMode);
+    if (cameraActive) {
+      await startCamera(nextMode);
+    }
+  };
+
+  React.useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, []);
 
   const handleVerifyAndSubmit = async (manualFallback: boolean = false) => {
     setVerifying(true);
@@ -201,13 +258,88 @@ export const GateAttendance: React.FC = () => {
         </div>
 
         {/* Verification Status & Security Feedback */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between">
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between space-y-4">
           <div>
-            <h2 className="text-sm font-bold text-slate-900 border-b border-slate-100 pb-2 mb-4">
-              Real-Time Verification Feedback
-            </h2>
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
+              <h2 className="text-sm font-bold text-slate-900">
+                Phone / Terminal Camera Stream
+              </h2>
+              <div className="flex items-center space-x-1.5">
+                {cameraActive && (
+                  <button
+                    onClick={toggleCameraFacing}
+                    title="Switch between front and back camera"
+                    className="p-1 text-slate-500 hover:text-slate-800 rounded bg-slate-100 transition"
+                  >
+                    <SwitchCamera className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                <button
+                  onClick={cameraActive ? stopCamera : () => startCamera()}
+                  className={`px-2 py-1 text-[11px] font-bold rounded flex items-center transition ${
+                    cameraActive
+                      ? 'bg-red-50 text-red-700 hover:bg-red-100'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {cameraActive ? (
+                    <>
+                      <VideoOff className="w-3 h-3 mr-1" />
+                      Turn Off
+                    </>
+                  ) : (
+                    <>
+                      <Video className="w-3 h-3 mr-1" />
+                      Start Phone Camera
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
 
-            <div className="space-y-3 text-xs">
+            {/* Video Viewfinder */}
+            <div className="relative w-full aspect-video rounded-xl bg-slate-950 overflow-hidden mb-4 border border-slate-800 flex items-center justify-center">
+              {cameraActive ? (
+                <>
+                  <video
+                    ref={videoRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    className={`w-full h-full object-cover ${facingMode === 'user' ? '-scale-x-100' : ''}`}
+                  />
+                  {/* Face Framing Overlay */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-36 h-48 rounded-full border-2 border-dashed border-emerald-400/70 animate-pulse flex items-center justify-center">
+                      <span className="text-[10px] font-mono text-emerald-300 bg-slate-900/60 px-2 py-0.5 rounded">
+                        Align Face
+                      </span>
+                    </div>
+                  </div>
+                  <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/60 text-white text-[10px] font-mono">
+                    Mode: {facingMode === 'user' ? 'Front (Selfie)' : 'Back Camera'}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center p-4">
+                  <Camera className="w-8 h-8 text-slate-600 mx-auto mb-2" />
+                  <p className="text-xs text-slate-400 font-medium">Camera is inactive</p>
+                  <p className="text-[10px] text-slate-500">Tap "Start Phone Camera" above to test live optical detection</p>
+                </div>
+              )}
+            </div>
+
+            {cameraError && (
+              <p className="text-[11px] text-amber-600 bg-amber-50 p-2 rounded-lg mb-3">
+                {cameraError}
+              </p>
+            )}
+
+            <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+              Verification Pipeline Status
+            </h3>
+
+            <div className="space-y-2.5 text-xs">
               
               {/* Optical Liveness Check */}
               <div className="p-3 rounded-xl border border-slate-200 flex items-center justify-between">
