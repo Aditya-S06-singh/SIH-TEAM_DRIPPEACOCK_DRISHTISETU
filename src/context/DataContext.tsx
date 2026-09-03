@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { collection, onSnapshot, query, orderBy, limit } from 'firebase/firestore';
+import { collection, onSnapshot, query, orderBy, limit, doc, setDoc, updateDoc } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from '../config/firebaseClient';
 import type {
   Institute,
@@ -151,7 +151,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Persist to Cloud Firestore when live
     if (isFirebaseConfigured && db) {
       try {
-        const { doc, setDoc } = await import('firebase/firestore');
         await setDoc(doc(db, 'attendanceEvents', newEvent.eventId), newEvent);
       } catch (err) {
         console.error('[Firestore Error] Failed to write attendance event to database:', err);
@@ -167,7 +166,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (isFirebaseConfigured && db) {
       try {
-        const { doc, updateDoc } = await import('firebase/firestore');
         await updateDoc(doc(db, 'alerts', alertId), {
           status,
           ...(resolvedAt ? { resolvedAt } : {}),
@@ -186,7 +184,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (isFirebaseConfigured && db) {
       try {
-        const { doc, updateDoc } = await import('firebase/firestore');
         await updateDoc(doc(db, 'edgeDevices', deviceId), {
           status,
           cameraStatus,
@@ -220,7 +217,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (isFirebaseConfigured && db) {
       try {
-        const { doc, setDoc } = await import('firebase/firestore');
         await setDoc(doc(db, 'videoVerifications', vc.verificationId), vc);
       } catch (err) {
         console.error('[Firestore Error] Failed to persist VC session to database:', err);
@@ -237,9 +233,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
       instituteId: assignmentData.instituteId || institutes[0].instituteId,
       instituteName: assignmentData.instituteName || institutes[0].name,
       inspectorId: assignmentData.inspectorId || 'usr_insp_01',
+      inspectorName: assignmentData.inspectorName || 'Vikramaditya Rathore',
       assignedBy: assignmentData.assignedBy || 'Dr. Sunita Rao (PMU)',
       assignedAt: new Date().toISOString(),
-      deadlineAt: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+      dueAt: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+      createdAt: new Date().toISOString(),
       priority: assignmentData.priority || 'routine',
       status: 'assigned',
       assignmentReason: assignmentData.assignmentReason || 'Automated risk-based inspection protocol',
@@ -257,7 +255,6 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (isFirebaseConfigured && db) {
       try {
-        const { doc, setDoc } = await import('firebase/firestore');
         await setDoc(doc(db, 'inspectionAssignments', assignmentId), newAssignment);
       } catch (err) {
         console.error('[Firestore Error] Failed to save inspection assignment to database:', err);

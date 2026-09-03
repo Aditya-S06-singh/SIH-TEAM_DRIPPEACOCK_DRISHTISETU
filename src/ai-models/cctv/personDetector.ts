@@ -8,10 +8,10 @@ import type { PersonDetectionResult, BoundingBox } from '../types';
 
 export class EdgePersonDetector {
   private modelLoaded: boolean = true;
-  private modelName: string = 'yolov8n-edge-fp16.onnx';
+  private modelName: string = 'yolo11n.onnx';
 
   constructor() {
-    console.info(`[AI Subsystem] EdgePersonDetector initialized with weights: ${this.modelName}`);
+    console.info(`[AI Subsystem] EdgePersonDetector initialized with Ultralytics model: ${this.modelName}`);
   }
 
   /**
