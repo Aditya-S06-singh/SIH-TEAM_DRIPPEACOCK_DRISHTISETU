@@ -82,6 +82,8 @@ export const GateAttendance: React.FC = () => {
   };
 
   React.useEffect(() => {
+    // Automatically prompts for camera permission when visiting the Gate Terminal tab
+    startCamera('user');
     return () => {
       stopCamera();
     };
