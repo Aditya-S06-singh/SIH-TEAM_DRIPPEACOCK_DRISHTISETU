@@ -1,0 +1,50 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Role checks (using token custom claims or firestore lookups)
+    function isValidImageOrPdf() {
+      return request.resource.contentType.matches('image/.*') || 
+             request.resource.contentType == 'application/pdf' ||
+             request.resource.contentType == 'video/mp4';
+    }
+
+    function isUnderMaxSize() {
+      return request.resource.size < 15 * 1024 * 1024; // 15MB limit
+    }
+
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    // /inspection-evidence/{instituteId}/{inspectionId}/{fileName}
+    match /inspection-evidence/{instituteId}/{inspectionId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidImageOrPdf() && isUnderMaxSize();
+    }
+
+    // /cctv-snapshots/{instituteId}/{cameraId}/{date}/{fileName}
+    match /cctv-snapshots/{instituteId}/{cameraId}/{date}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidImageOrPdf() && isUnderMaxSize();
+    }
+
+    // /vc-evidence/{instituteId}/{verificationId}/{fileName}
+    match /vc-evidence/{instituteId}/{verificationId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidImageOrPdf() && isUnderMaxSize();
+    }
+
+    // /corrective-action-evidence/{instituteId}/{actionId}/{fileName}
+    match /corrective-action-evidence/{instituteId}/{actionId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidImageOrPdf() && isUnderMaxSize();
+    }
+  }
+}

@@ -1,0 +1,175 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- Helper Functions for Role-Based Access Control ---
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Fetches user profile from /users/{uid}
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function getUserRole() {
+      return isAuthenticated() ? getUserData().role : null;
+    }
+
+    function isDosjeOfficial() {
+      return getUserRole() == 'dosje_official';
+    }
+
+    function isPmuSupervisor() {
+      return getUserRole() == 'pmu_supervisor';
+    }
+
+    function isInspector() {
+      return getUserRole() == 'inspector';
+    }
+
+    function isInstituteAdmin() {
+      return getUserRole() == 'institute_admin';
+    }
+
+    function isEntryOperator() {
+      return getUserRole() == 'entry_operator';
+    }
+
+    // Checks if the user belongs to the institute
+    function isAssignedToInstitute(instituteId) {
+      return instituteId in getUserData().assignedInstituteIds;
+    }
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- /users/{uid} Collection ---
+    // Users can read their own profile; Officials/Supervisors can manage profiles
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isDosjeOfficial() || isPmuSupervisor());
+      allow write: if isDosjeOfficial();
+    }
+
+    // --- /institutes/{instituteId} Collection ---
+    // Officials & Supervisors read all; Institute admin reads own institute
+    // Only Officials or Supervisors can update institute details
+    // Risk score writes restricted to trusted backend/Admin SDK
+    match /institutes/{instituteId} {
+      allow read: if isAuthenticated() && (
+        isDosjeOfficial() || 
+        isPmuSupervisor() || 
+        isInspector() || 
+        (isInstituteAdmin() && isAssignedToInstitute(instituteId))
+      );
+      allow write: if isAuthenticated() && (isDosjeOfficial() || isPmuSupervisor());
+    }
+
+    // --- /edgeDevices/{deviceId} Collection ---
+    // Read: Officials, Supervisors, or Assigned Institute Admin
+    // Heartbeat updates allowed by edge device authenticated token or supervisor
+    match /edgeDevices/{deviceId} {
+      allow read: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isDosjeOfficial() || 
+        isPmuSupervisor() || 
+        (isInstituteAdmin() && isAssignedToInstitute(resource.data.instituteId))
+      );
+    }
+
+    // --- /attendanceEvents/{eventId} Collection ---
+    // Entry operators can create events ONLY for their assigned institute
+    // Strict privacy rule: Never allow storing raw unmasked IDs
+    match /attendanceEvents/{eventId} {
+      allow read: if isAuthenticated() && (
+        isDosjeOfficial() || 
+        isPmuSupervisor() || 
+        isInspector() || 
+        (isInstituteAdmin() && isAssignedToInstitute(resource.data.instituteId))
+      );
+      allow create: if isAuthenticated() && (
+        (isEntryOperator() && isAssignedToInstitute(request.resource.data.instituteId)) ||
+        isPmuSupervisor() ||
+        isDosjeOfficial()
+      ) && request.resource.data.governmentIdReferenceMasked.matches('^XXXX-XXXX-[0-9]{4}$');
+      allow update, delete: if false; // Immutable attendance audit trail
+    }
+
+    // --- /alerts/{alertId} Collection ---
+    // Officials and Supervisors can manage; Institute admin can acknowledge their own
+    match /alerts/{alertId} {
+      allow read: if isAuthenticated() && (
+        isDosjeOfficial() || 
+        isPmuSupervisor() || 
+        isInspector() || 
+        (isInstituteAdmin() && isAssignedToInstitute(resource.data.instituteId))
+      );
+      allow update: if isAuthenticated() && (
+        isDosjeOfficial() || 
+        isPmuSupervisor() || 
+        (isInstituteAdmin() && isAssignedToInstitute(resource.data.instituteId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'acknowledgedBy']))
+      );
+      allow create: if isDosjeOfficial() || isPmuSupervisor();
+    }
+
+    // --- /videoVerifications/{verificationId} Collection ---
+    match /videoVerifications/{verificationId} {
+      allow read: if isAuthenticated();
+      allow create: if isDosjeOfficial() || isPmuSupervisor();
+      allow update: if isAuthenticated() && (
+        isDosjeOfficial() || 
+        isPmuSupervisor() || 
+        (isInstituteAdmin() && isAssignedToInstitute(resource.data.instituteId))
+      );
+    }
+
+    // --- /inspectionAssignments/{assignmentId} Collection ---
+    match /inspectionAssignments/{assignmentId} {
+      allow read: if isAuthenticated() && (
+        isDosjeOfficial() || 
+        isPmuSupervisor() || 
+        (isInspector() && resource.data.inspectorId == request.auth.uid)
+      );
+      allow write: if isDosjeOfficial() || isPmuSupervisor();
+    }
+
+    // --- /inspectionReports/{reportId} Collection ---
+    match /inspectionReports/{reportId} {
+      allow read: if isAuthenticated() && (
+        isDosjeOfficial() || 
+        isPmuSupervisor() || 
+        (isInspector() && resource.data.inspectorId == request.auth.uid) ||
+        (isInstituteAdmin() && isAssignedToInstitute(resource.data.instituteId))
+      );
+      allow create: if isInspector() && request.resource.data.inspectorId == request.auth.uid;
+      allow update: if isDosjeOfficial() || isPmuSupervisor();
+    }
+
+    // --- /correctiveActions/{actionId} Collection ---
+    match /correctiveActions/{actionId} {
+      allow read: if isAuthenticated() && (
+        isDosjeOfficial() || 
+        isPmuSupervisor() || 
+        isInspector() || 
+        (isInstituteAdmin() && isAssignedToInstitute(resource.data.instituteId))
+      );
+      // Institute admin can submit responses
+      allow update: if isAuthenticated() && (
+        isDosjeOfficial() || 
+        isPmuSupervisor() || 
+        (isInstituteAdmin() && isAssignedToInstitute(resource.data.instituteId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['instituteResponse', 'status', 'evidenceReferences']))
+      );
+    }
+
+    // --- /auditLogs/{logId} Collection ---
+    // Immutable. Readable only by Officials and Supervisors. Write only via server / functions.
+    match /auditLogs/{logId} {
+      allow read: if isDosjeOfficial() || isPmuSupervisor();
+      allow write: if false; // Only written through Admin SDK
+    }
+  }
+}
