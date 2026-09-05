@@ -5,6 +5,30 @@ All notable changes to the **DrishtiSetu** (Attendance & Surveillance Sentinel) 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-09-05 (version-2.0)
+
+### Added
+- **Wireless Phone Camera YOLO11n AI Pipeline**:
+  - Wireless frame ingestion from edge node camera via ADB tunnel / IP HTTP stream.
+  - Integration of YOLO11n person tracking (`classes=[0]`, `persist=True`) processing live camera feeds in real time.
+  - Dynamic ID tracking and continuous headcount calculation.
+  - Dedicated HTTP MJPEG annotated stream server (`/stream` and `/snapshot`) serving live bounding boxes and detection overlays on port `8089`.
+- **Live Inspection Fullscreen & Landscape Mode**:
+  - Fullscreen toggle with orientation control (`SystemChrome.setPreferredOrientations`) into landscape mode.
+  - Immersive edge-to-edge camera feed view with live telemetry HUD and detected person count.
+  - Safe back navigation (`PopScope` and back button) restoring portrait orientation seamlessly.
+  - High-stability stream viewer with in-flight request guard to maintain smooth and consistent FPS.
+- **Continuous Appwrite Cloud Synchronization**:
+  - Real-time updates of detected headcount and audit discrepancy pushed directly to the Appwrite database document (`drishtisetu_db` / `zones`).
+  - Elimination of static/mock audit baselines in favor of live sensor and model truth.
+
+### Changed
+- **Bounding Box Rendering**:
+  - Completely removed all static/predefined portrait anchor boxes.
+  - Only dynamically recognized people detected by the model are highlighted with bounding boxes and track IDs.
+- **Network & Streaming Architecture**:
+  - Pointed default zone CCTV streams to the live annotated edge MJPEG server (`http://127.0.0.1:8089/stream`).
+
 ---
 
 ## [0.1.0] - 2026-09-05 (version-0.1)
