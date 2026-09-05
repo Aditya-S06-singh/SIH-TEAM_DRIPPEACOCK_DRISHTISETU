@@ -14,7 +14,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController(text: 'auditor.lead@sentinel.org');
+  final _emailController =
+      TextEditingController(text: 'auditor.lead@sentinel.org');
   final _passwordController = TextEditingController(text: 'Inspector#2026');
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -64,7 +65,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     decoration: BoxDecoration(
                       color: const Color(0xFF131920),
                       shape: BoxShape.circle,
-                      border: Border.all(color: const Color(0xFF26303D), width: 2),
+                      border:
+                          Border.all(color: const Color(0xFF26303D), width: 2),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.cyanAccent.withOpacity(0.18),
@@ -107,7 +109,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     decoration: InputDecoration(
                       labelText: 'Auditor Official Email',
                       labelStyle: const TextStyle(color: Colors.white60),
-                      prefixIcon: const Icon(Icons.badge_outlined, color: Colors.cyanAccent),
+                      prefixIcon: const Icon(Icons.badge_outlined,
+                          color: Colors.cyanAccent),
                       filled: true,
                       fillColor: const Color(0xFF131920),
                       enabledBorder: OutlineInputBorder(
@@ -119,7 +122,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         borderSide: const BorderSide(color: Colors.cyanAccent),
                       ),
                     ),
-                    validator: (v) => v == null || !v.contains('@') ? 'Enter a valid enterprise email' : null,
+                    validator: (v) => v == null || !v.contains('@')
+                        ? 'Enter a valid enterprise email'
+                        : null,
                   ),
                   const SizedBox(height: 18),
                   TextFormField(
@@ -129,13 +134,17 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     decoration: InputDecoration(
                       labelText: 'Security Password',
                       labelStyle: const TextStyle(color: Colors.white60),
-                      prefixIcon: const Icon(Icons.lock_outline, color: Colors.cyanAccent),
+                      prefixIcon: const Icon(Icons.lock_outline,
+                          color: Colors.cyanAccent),
                       suffixIcon: IconButton(
                         icon: Icon(
-                          _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                          _obscurePassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
                           color: Colors.white54,
                         ),
-                        onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                        onPressed: () => setState(
+                            () => _obscurePassword = !_obscurePassword),
                       ),
                       filled: true,
                       fillColor: const Color(0xFF131920),
@@ -148,7 +157,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         borderSide: const BorderSide(color: Colors.cyanAccent),
                       ),
                     ),
-                    validator: (v) => v == null || v.length < 6 ? 'Password must be at least 6 characters' : null,
+                    validator: (v) => v == null || v.length < 6
+                        ? 'Password must be at least 6 characters'
+                        : null,
                   ),
                   const SizedBox(height: 28),
                   SizedBox(
@@ -158,14 +169,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.cyanAccent.shade700,
                         foregroundColor: Colors.black,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
                         elevation: 4,
                       ),
                       child: _isLoading
                           ? const SizedBox(
                               width: 24,
                               height: 24,
-                              child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2.5),
+                              child: CircularProgressIndicator(
+                                  color: Colors.black, strokeWidth: 2.5),
                             )
                           : Text(
                               'AUTHENTICATE & ENTER',
@@ -181,7 +194,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   Text(
                     'Confidential Internal Audit Terminal v2.4',
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(fontSize: 11, color: Colors.white24),
+                    style:
+                        GoogleFonts.inter(fontSize: 11, color: Colors.white24),
                   ),
                 ],
               ),

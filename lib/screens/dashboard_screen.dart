@@ -305,7 +305,9 @@ class DashboardScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                zone.isCameraOnline ? 'RTSP H.265 HW-Dec' : 'Hardware Disconnected',
+                                zone.isCameraOnline
+                                    ? 'RTSP H.265 HW-Dec'
+                                    : 'Hardware Disconnected',
                                 style: GoogleFonts.inter(
                                     color: Colors.white24, fontSize: 9),
                               ),
