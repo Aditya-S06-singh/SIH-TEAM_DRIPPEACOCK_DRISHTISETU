@@ -6,6 +6,7 @@ import '../models/alert_model.dart';
 import '../models/app_user_model.dart';
 import '../models/inspection_model.dart';
 import '../models/zone_model.dart';
+import '../services/appwrite_dashboard_service.dart';
 
 // -------------------------------------------------------------
 // Mock Data Repository & In-Memory Backend Store
@@ -19,7 +20,7 @@ class SentinelDataRepository {
       id: 'zone-101',
       name: 'Central Assembly Hall',
       floor: 'Floor 1',
-      cctvStreamUrl: 'rtsp://sentinel.internal/stream/zone101',
+      cctvStreamUrl: 'http://127.0.0.1:8088/stream',
       isCameraOnline: true,
       expectedCount: 142,
       detectedCount: 128,
@@ -96,9 +97,34 @@ class SentinelDataRepository {
 
   final List<InspectionModel> _inspections = [];
 
+  final AppwritePollerService _appwritePoller = AppwritePollerService();
+
   SentinelDataRepository() {
     // Initial emit
     _emit();
+    // Start live sync with Appwrite
+    _appwritePoller.zoneStream.listen((updatedZone) {
+      final idx = _zones.indexWhere((z) => z.id == updatedZone.id || z.id == 'zone-101');
+      if (idx != -1) {
+        final prev = _zones[idx];
+        _zones[idx] = ZoneModel(
+          id: prev.id,
+          name: prev.name,
+          floor: prev.floor,
+          cctvStreamUrl: prev.cctvStreamUrl.isNotEmpty ? prev.cctvStreamUrl : updatedZone.cctvStreamUrl,
+          isCameraOnline: updatedZone.isCameraOnline,
+          expectedCount: updatedZone.expectedCount,
+          detectedCount: updatedZone.detectedCount,
+          discrepancy: updatedZone.discrepancy,
+          severity: updatedZone.severity,
+          lastAuditTimestamp: updatedZone.lastAuditTimestamp,
+          uncheckedSince: prev.uncheckedSince,
+          escalated: prev.escalated,
+        );
+        _emit();
+      }
+    });
+    _appwritePoller.startPolling();
   }
 
   void _emit() {
@@ -117,10 +143,11 @@ class SentinelDataRepository {
   }
 
   Stream<ZoneModel?> watchZone(String zoneId) async* {
-    ZoneModel? find() => _zones.where((z) => z.id == zoneId).firstOrNull;
-    yield find();
+    ZoneModel? find(List<ZoneModel> list) =>
+        list.where((z) => z.id == zoneId || (zoneId == 'zone-101' && z.name == 'Central Assembly Hall')).firstOrNull;
+    yield find(_zones);
     await for (final zones in _zonesController.stream) {
-      yield zones.where((z) => z.id == zoneId).firstOrNull;
+      yield find(zones);
     }
   }
 
@@ -203,8 +230,40 @@ class SentinelDataRepository {
         isCameraOnline: newOnline,
         detectedCount: newOnline ? current.expectedCount - current.discrepancy : 0,
       );
+    }
+  }
+
+  void setStreamUrl(String zoneId, String streamUrl) {
+    final idx = _zones.indexWhere((z) => z.id == zoneId);
+    if (idx != -1) {
+      _zones[idx] = _zones[idx].copyWith(
+        cctvStreamUrl: streamUrl,
+        isCameraOnline: true,
+      );
       _emit();
     }
+  }
+
+  void updateTelemetryFromNode({
+    required String zoneId,
+    required int expectedCount,
+    required int detectedCount,
+  }) {
+    final idx = _zones.indexWhere((z) => z.id == zoneId);
+    final discrepancy = expectedCount - detectedCount;
+    final severity = discrepancy > 5 ? 'critical' : (discrepancy > 0 ? 'warning' : 'normal');
+
+    if (idx != -1) {
+      _zones[idx] = _zones[idx].copyWith(
+        expectedCount: expectedCount,
+        detectedCount: detectedCount,
+        discrepancy: discrepancy,
+        severity: severity,
+        isCameraOnline: true,
+        lastAuditTimestamp: DateTime.now(),
+      );
+    }
+    _emit();
   }
 }
 
@@ -247,13 +306,7 @@ final zonesStreamProvider = StreamProvider<List<ZoneModel>>((ref) {
   return repo.watchZones();
 });
 
-final selectedZoneProvider = StateProvider<String?>((ref) {
-  final zonesAsync = ref.watch(zonesStreamProvider);
-  return zonesAsync.maybeWhen(
-    data: (zones) => zones.isNotEmpty ? zones.first.id : null,
-    orElse: () => null,
-  );
-});
+final selectedZoneProvider = StateProvider<String?>((ref) => 'zone-101');
 
 final zoneDetailStreamProvider = StreamProvider.family<ZoneModel?, String>((ref, zoneId) {
   final repo = ref.watch(sentinelRepositoryProvider);
@@ -308,6 +361,10 @@ class InspectionActionController extends StateNotifier<AsyncValue<void>> {
 
   Future<void> toggleCamera(String zoneId) async {
     _repo.toggleCameraStatus(zoneId);
+  }
+
+  Future<void> setStreamUrl(String zoneId, String streamUrl) async {
+    _repo.setStreamUrl(zoneId, streamUrl);
   }
 }
 

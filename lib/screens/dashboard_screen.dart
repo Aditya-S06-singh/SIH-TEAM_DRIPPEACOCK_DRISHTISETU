@@ -285,7 +285,8 @@ class DashboardScreen extends ConsumerWidget {
                               Text(
                                 zone.isCameraOnline
                                     ? 'FEED ONLINE'
-                                    : 'FEED OFFLINE',
+                                    : 'CAMERA NOT WORKING',
+                                textAlign: TextAlign.center,
                                 style: GoogleFonts.outfit(
                                   color: zone.isCameraOnline
                                       ? Colors.greenAccent
@@ -298,13 +299,13 @@ class DashboardScreen extends ConsumerWidget {
                               Text(
                                 zone.isCameraOnline
                                     ? 'Ping: 12ms | Drops: 0%'
-                                    : 'No Signal Received',
+                                    : 'Camera Offline (No Signal)',
                                 style: GoogleFonts.inter(
                                     color: Colors.white54, fontSize: 10),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'RTSP H.265 HW-Dec',
+                                zone.isCameraOnline ? 'RTSP H.265 HW-Dec' : 'Hardware Disconnected',
                                 style: GoogleFonts.inter(
                                     color: Colors.white24, fontSize: 9),
                               ),
@@ -325,26 +326,28 @@ class DashboardScreen extends ConsumerWidget {
                                 padding: const EdgeInsets.symmetric(
                                     horizontal: 8, vertical: 4),
                                 decoration: BoxDecoration(
-                                  color: isCritical
+                                  color: (!zone.isCameraOnline || isCritical)
                                       ? Colors.redAccent.withOpacity(0.2)
                                       : Colors.cyanAccent.withOpacity(0.1),
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                    color: isCritical
+                                    color: (!zone.isCameraOnline || isCritical)
                                         ? Colors.redAccent
                                         : Colors.cyanAccent,
                                     width: 1,
                                   ),
                                 ),
                                 child: Text(
-                                  isCritical
-                                      ? 'GHOST ATTENDANCE'
-                                      : (zone.discrepancy > 0
-                                          ? 'DEFICIT HIGH'
-                                          : 'OPTIMAL SYNC'),
+                                  !zone.isCameraOnline
+                                      ? 'CAMERA OFFLINE'
+                                      : (isCritical
+                                          ? 'GHOST ATTENDANCE'
+                                          : (zone.discrepancy > 0
+                                              ? 'DEFICIT HIGH'
+                                              : 'OPTIMAL SYNC')),
                                   textAlign: TextAlign.center,
                                   style: GoogleFonts.outfit(
-                                    color: isCritical
+                                    color: (!zone.isCameraOnline || isCritical)
                                         ? Colors.redAccent
                                         : Colors.cyanAccent,
                                     fontSize: 9,
@@ -360,14 +363,17 @@ class DashboardScreen extends ConsumerWidget {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                isCritical
-                                    ? 'CRITICAL (9.4/10)'
-                                    : 'STABLE (0.5/10)',
+                                !zone.isCameraOnline
+                                    ? 'CAMERA FAILURE (CRITICAL)'
+                                    : (isCritical
+                                        ? 'CRITICAL (9.4/10)'
+                                        : 'STABLE (0.5/10)'),
+                                textAlign: TextAlign.center,
                                 style: GoogleFonts.outfit(
-                                  color: isCritical
-                                      ? Colors.orangeAccent
+                                  color: (!zone.isCameraOnline || isCritical)
+                                      ? Colors.redAccent
                                       : Colors.greenAccent,
-                                  fontSize: 12,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
@@ -576,6 +582,13 @@ class DashboardScreen extends ConsumerWidget {
                           onTap: () {
                             ref.read(selectedZoneProvider.notifier).state =
                                 z.id;
+                            if (scrollController.hasClients) {
+                              scrollController.animateTo(
+                                0,
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeOut,
+                              );
+                            }
                           },
                         );
                       }).toList(),

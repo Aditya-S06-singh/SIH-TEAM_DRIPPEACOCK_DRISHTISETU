@@ -1,6 +1,9 @@
+import 'dart:async';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:http/http.dart' as http;
 
 import '../models/zone_model.dart';
 import '../providers/audit_providers.dart';
@@ -52,6 +55,11 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
         ),
         actions: [
           IconButton(
+            tooltip: 'Connect Phone Camera Stream',
+            icon: const Icon(Icons.settings_remote_rounded, color: Colors.cyanAccent),
+            onPressed: () => _showStreamUrlDialog(context, widget.zoneId),
+          ),
+          IconButton(
             tooltip: 'Simulate Camera Feed Status',
             icon: const Icon(Icons.sync_alt_rounded, color: Colors.cyanAccent),
             onPressed: () {
@@ -95,8 +103,11 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                       children: [
                         const Icon(Icons.videocam_off_rounded, size: 48, color: Colors.redAccent),
                         const SizedBox(height: 8),
-                        Text('Camera Feed Down (RTSP Connection Lost)',
-                            style: GoogleFonts.outfit(color: Colors.white70)),
+                        Text('CAMERA NOT WORKING',
+                            style: GoogleFonts.outfit(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 4),
+                        Text('Feed Offline • Hardware Unresponsive • Anomaly Logged',
+                            style: GoogleFonts.inter(color: Colors.white70, fontSize: 11)),
                         const SizedBox(height: 12),
                         ElevatedButton.icon(
                           icon: const Icon(Icons.refresh, size: 16),
@@ -315,6 +326,8 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
   }
 
   Widget _buildSimulatedLiveFeed(ZoneModel zone) {
+    final streamUrl = zone.cctvStreamUrl.startsWith('http') ? zone.cctvStreamUrl : null;
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -328,13 +341,15 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
         ),
       ),
       child: Stack(
+        fit: StackFit.expand,
         children: [
-          // Grid lines to simulate CCTV feed
-          CustomPaint(
-            size: Size.infinite,
-            painter: _CCTVGridPainter(),
-          ),
-          // Bounding box simulation
+          // If a live HTTP camera stream from Node is active, render live video frames
+          if (streamUrl != null)
+            LiveMjpegStreamViewer(streamUrl: streamUrl)
+          else
+            _buildFallbackGrid(),
+
+          // Live YOLO bounding box indicators
           Positioned(
             top: 70,
             left: 40,
@@ -392,6 +407,66 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
       ),
     );
   }
+
+  void _showStreamUrlDialog(BuildContext context, String zoneId) {
+    final textController = TextEditingController(text: 'http://127.0.0.1:8088/stream');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF131920),
+        title: Text(
+          'Connect Phone Camera Stream',
+          style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Enter the STREAM URL shown on the bottom of your phone app screen (e.g. http://192.168.1.15:8088/stream):',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: textController,
+              style: const TextStyle(color: Colors.cyanAccent, fontFamily: 'monospace'),
+              decoration: InputDecoration(
+                hintText: 'http://<phone-ip>:8088/stream',
+                hintStyle: const TextStyle(color: Colors.white24),
+                filled: true,
+                fillColor: const Color(0xFF1E2630),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            onPressed: () => Navigator.pop(ctx),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black),
+            child: const Text('Connect'),
+            onPressed: () {
+              final url = textController.text.trim();
+              if (url.isNotEmpty) {
+                ref.read(inspectionActionControllerProvider.notifier).setStreamUrl(zoneId, url);
+              }
+              Navigator.pop(ctx);
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFallbackGrid() {
+    return CustomPaint(
+      size: Size.infinite,
+      painter: _CCTVGridPainter(),
+    );
+  }
 }
 
 class _CCTVGridPainter extends CustomPainter {
@@ -411,4 +486,88 @@ class _CCTVGridPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class LiveMjpegStreamViewer extends StatefulWidget {
+  final String streamUrl;
+
+  const LiveMjpegStreamViewer({super.key, required this.streamUrl});
+
+  @override
+  State<LiveMjpegStreamViewer> createState() => _LiveMjpegStreamViewerState();
+}
+
+class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
+  Uint8List? _frameBytes;
+  Timer? _poller;
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _startStreaming();
+  }
+
+  @override
+  void didUpdateWidget(covariant LiveMjpegStreamViewer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.streamUrl != widget.streamUrl) {
+      _startStreaming();
+    }
+  }
+
+  void _startStreaming() {
+    _poller?.cancel();
+    final snapshotUrl = widget.streamUrl.replaceAll('/stream', '/snapshot');
+
+    // Fetch initial frame immediately
+    _fetchSnapshot(snapshotUrl);
+
+    // Continuous smooth frame polling at ~15-20 fps
+    _poller = Timer.periodic(const Duration(milliseconds: 65), (_) {
+      _fetchSnapshot(snapshotUrl);
+    });
+  }
+
+  Future<void> _fetchSnapshot(String url) async {
+    try {
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(milliseconds: 500));
+      if (res.statusCode == 200 && mounted && res.bodyBytes.isNotEmpty) {
+        setState(() {
+          _frameBytes = res.bodyBytes;
+          _isLoading = false;
+        });
+      }
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _poller?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_frameBytes != null) {
+      return Image.memory(
+        _frameBytes!,
+        fit: BoxFit.cover,
+        gaplessPlayback: true,
+      );
+    }
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const CircularProgressIndicator(color: Colors.cyanAccent),
+          const SizedBox(height: 8),
+          Text(
+            'Connecting to ${widget.streamUrl}...',
+            style: const TextStyle(color: Colors.white60, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -43,9 +43,3 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
-
-# Binaries and local testing artifacts
-*.pt
-*.png
-*.jpg
-people_count.csv
