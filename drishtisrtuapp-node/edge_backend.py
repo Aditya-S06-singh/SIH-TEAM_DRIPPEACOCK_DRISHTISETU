@@ -180,106 +180,48 @@ def camera_yolo_loop():
     model = YOLO("yolo11n.pt")
     names = model.names
 
-    # ONLY check phone camera streams (laptop webcam completely disabled as requested)
-    phone_urls = [
-        "http://127.0.0.1:8089/stream",
-        "http://192.168.1.2:8088/stream",
-        "http://192.168.1.2:8080/video"
-    ]
+    # Check if a wireless phone camera stream URL is provided, else use webcam (0)
+    source = os.environ.get("PHONE_STREAM_URL", "0")
+    if source.isdigit():
+        source = int(source)
+        print(f"[YOLO Worker] Opening local webcam ({source})...")
+        cap = cv2.VideoCapture(source, cv2.CAP_DSHOW)
+        if not cap.isOpened():
+            cap = cv2.VideoCapture(source)
+    else:
+        print(f"[YOLO Worker] Connecting to wireless phone camera stream: {source} ...")
+        cap = cv2.VideoCapture(source)
 
-    cap = None
-    active_source = None
-    for src in phone_urls:
-        print(f"[YOLO Worker] Probing Phone Camera at {src} ...")
-        test_cap = cv2.VideoCapture(src)
-        if test_cap.isOpened():
-            ret, test_frame = test_cap.read()
-            if ret and test_frame is not None:
-                cap = test_cap
-                active_source = src
-                print(f"[YOLO Worker] Successfully linked to Phone Camera: {src}")
-                break
-            else:
-                test_cap.release()
-        else:
-            test_cap.release()
-
-    if cap is None:
-        print("\n=======================================================")
-        print("  [ALERT] CAMERA NOT WORKING / DISCONNECTED")
-        print("  Laptop webcam is disabled. Phone camera not detected.")
-        print("  Logging critical anomaly: CAMERA_OFFLINE")
-        print("=======================================================\n")
-        sync_camera_offline_to_appwrite()
-
-        # Render 'CAMERA NOT WORKING' placeholder frame for the stream
-        placeholder = np.zeros((540, 960, 3), dtype=np.uint8)
-        cv2.putText(placeholder, "CAMERA NOT WORKING", (180, 240), cv2.FONT_HERSHEY_SIMPLEX, 1.6, (0, 0, 255), 3)
-        cv2.putText(placeholder, "Feed Offline / Signal Lost - Anomaly Logged", (200, 300), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (200, 200, 200), 2)
-        ret_enc, buffer = cv2.imencode('.jpg', placeholder, [cv2.IMWRITE_JPEG_QUALITY, 80])
-        if ret_enc:
-            with frame_lock:
-                current_jpeg_frame = buffer.tobytes()
-
-        # Retry loop checking for phone reconnection while keeping anomaly state synced
-        while True:
-            for src in phone_urls:
-                test_cap = cv2.VideoCapture(src)
-                if test_cap.isOpened():
-                    ret, test_frame = test_cap.read()
-                    if ret and test_frame is not None:
-                        cap = test_cap
-                        active_source = src
-                        print(f"[YOLO Worker] Phone Camera reconnected: {src}")
-                        break
-                    test_cap.release()
-            if cap is not None:
-                break
-            sync_camera_offline_to_appwrite()
-            time.sleep(3.0)
-
-    SKIP_FRAMES = 2
-    frame_idx = 0
-    cached_boxes = []
-    prev_time = time.time()
-
-    print(f"[YOLO Worker] Phone Camera active ({active_source}). Live counting started...")
+    if not cap.isOpened():
+        print(f"[YOLO Worker] Could not open camera source: {source}. Retrying fallback webcam 0...")
+        cap = cv2.VideoCapture(0)
 
     while True:
         ret, frame = cap.read()
         if not ret:
+            print("Failed to grab live frame.")
             time.sleep(0.1)
             continue
 
-        frame_idx += 1
-        frame = cv2.resize(frame, (960, 540))
+        frame = cv2.resize(frame, (1020, 600))
 
-        if frame_idx % (SKIP_FRAMES + 1) == 0:
-            results = model(frame, imgsz=640, conf=0.25, classes=[0], verbose=False)
-            cached_boxes = []
-            if results[0].boxes is not None and len(results[0].boxes) > 0:
-                boxes = results[0].boxes.xyxy.int().cpu().tolist()
-                class_ids = results[0].boxes.cls.int().cpu().tolist()
-                confs = results[0].boxes.conf.cpu().tolist()
+        # Track only persons (COCO class 0)
+        results = model.track(frame, persist=True, classes=[0], verbose=False)
 
-                for box, cls_id, conf in zip(boxes, class_ids, confs):
-                    cached_boxes.append((box, cls_id, conf))
+        count = 0
+        # Check if there are tracked boxes
+        if results[0].boxes is not None and results[0].boxes.id is not None:
+            boxes = results[0].boxes.xyxy.int().cpu().tolist()
+            track_ids = results[0].boxes.id.int().cpu().tolist()
+            count = len(boxes)
 
-            detected_headcount = len(cached_boxes)
-            sync_to_appwrite(detected_headcount)
+            for box, track_id in zip(boxes, track_ids):
+                x1, y1, x2, y2 = box
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+                cvzone.putTextRect(frame, f'ID: {track_id}', (x1, max(30, y1)), 1, 1)
 
-        for box, cls_id, conf in cached_boxes:
-            x1, y1, x2, y2 = box
-            cls_name = names[cls_id]
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-            cvzone.putTextRect(
-                frame,
-                f'{cls_name} {int(conf * 100)}%',
-                (x1, max(20, y1 - 5)),
-                scale=0.6,
-                thickness=1,
-                colorR=(0, 200, 0)
-            )
+        detected_headcount = count
+        sync_to_appwrite(detected_headcount)
 
         curr_time = time.time()
         fps = int(1.0 / max(0.001, (curr_time - prev_time)))

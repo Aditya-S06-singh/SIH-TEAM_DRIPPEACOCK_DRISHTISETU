@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:ui';
 import 'package:http/http.dart' as http;
 import '../constants/appwrite_constants.dart';
 import '../models/detection_models.dart';
@@ -72,38 +71,8 @@ class VisionPipelineService {
 
   /// Phase 2: YOLO11n Crowd Headcount Detection
   void _runYolo11nInference() {
-    // Generate realistic person bounding boxes for detection preview
-    final int count = detectedHeadcount;
+    // Only emit boxes recognized dynamically, no predefined simulated boxes
     final List<BoundingBox> boxes = [];
-
-    // Natural human portrait proportions
-    final List<Rect> anchorRects = [
-      const Rect.fromLTRB(0.12, 0.25, 0.45, 0.58),
-      const Rect.fromLTRB(0.55, 0.22, 0.88, 0.55),
-      const Rect.fromLTRB(0.30, 0.40, 0.70, 0.75),
-      const Rect.fromLTRB(0.08, 0.35, 0.42, 0.70),
-    ];
-
-    for (int i = 0; i < min(count, 4); i++) {
-      final anchor = anchorRects[i];
-      final jitterX = (_random.nextDouble() - 0.5) * 0.015;
-      final jitterY = (_random.nextDouble() - 0.5) * 0.015;
-      final conf = 0.88 + (_random.nextDouble() * 0.10);
-
-      boxes.add(
-        BoundingBox(
-          rect: Rect.fromLTRB(
-            (anchor.left + jitterX).clamp(0.0, 1.0),
-            (anchor.top + jitterY).clamp(0.0, 1.0),
-            (anchor.right + jitterX).clamp(0.0, 1.0),
-            (anchor.bottom + jitterY).clamp(0.0, 1.0),
-          ),
-          label: 'person',
-          confidence: double.parse(conf.toStringAsFixed(2)),
-        ),
-      );
-    }
-
     _boxesController.add(boxes);
   }
 

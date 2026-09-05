@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -22,6 +23,7 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
   final _findingsController = TextEditingController();
   final _manualCountController = TextEditingController();
   late AnimationController _pulseController;
+  bool _isFullScreen = false;
 
   @override
   void initState() {
@@ -32,8 +34,30 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
     )..repeat(reverse: true);
   }
 
+  void _toggleFullScreen() {
+    setState(() {
+      _isFullScreen = !_isFullScreen;
+    });
+    if (_isFullScreen) {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.landscapeLeft,
+        DeviceOrientation.landscapeRight,
+      ]);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    } else {
+      SystemChrome.setPreferredOrientations([
+        DeviceOrientation.portraitUp,
+      ]);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    }
+  }
+
   @override
   void dispose() {
+    SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+    ]);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
     _pulseController.dispose();
     _findingsController.dispose();
     _manualCountController.dispose();
@@ -44,40 +68,158 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
   Widget build(BuildContext context) {
     final zoneAsync = ref.watch(zoneDetailStreamProvider(widget.zoneId));
 
-    return Scaffold(
-      backgroundColor: const Color(0xFF090D12),
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF131920),
-        elevation: 0,
-        title: Text(
-          'Live Inspection Console',
-          style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+    return PopScope(
+      canPop: !_isFullScreen,
+      onPopInvoked: (didPop) {
+        if (!didPop && _isFullScreen) {
+          _toggleFullScreen();
+        }
+      },
+      child: Scaffold(
+        backgroundColor: const Color(0xFF090D12),
+        appBar: _isFullScreen
+            ? null
+            : AppBar(
+                backgroundColor: const Color(0xFF131920),
+                elevation: 0,
+                title: Text(
+                  'Live Inspection Console',
+                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                actions: [
+                  IconButton(
+                    tooltip: 'Full Screen Landscape',
+                    icon: const Icon(Icons.fullscreen_rounded, color: Colors.cyanAccent),
+                    onPressed: _toggleFullScreen,
+                  ),
+                  IconButton(
+                    tooltip: 'Connect Phone Camera Stream',
+                    icon: const Icon(Icons.settings_remote_rounded, color: Colors.cyanAccent),
+                    onPressed: () => _showStreamUrlDialog(context, widget.zoneId),
+                  ),
+                  IconButton(
+                    tooltip: 'Simulate Camera Feed Status',
+                    icon: const Icon(Icons.sync_alt_rounded, color: Colors.cyanAccent),
+                    onPressed: () {
+                      ref.read(inspectionActionControllerProvider.notifier).toggleCamera(widget.zoneId);
+                    },
+                  )
+                ],
+              ),
+        body: zoneAsync.when(
+          data: (zone) {
+            if (zone == null) {
+              return const Center(child: Text('Zone records unavailable', style: TextStyle(color: Colors.white)));
+            }
+            if (_isFullScreen) {
+              return _buildFullScreenVideoPlayer(zone);
+            }
+            return _buildConsoleContent(context, zone);
+          },
+          loading: () => const Center(child: CircularProgressIndicator(color: Colors.cyanAccent)),
+          error: (err, _) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
         ),
-        actions: [
-          IconButton(
-            tooltip: 'Connect Phone Camera Stream',
-            icon: const Icon(Icons.settings_remote_rounded, color: Colors.cyanAccent),
-            onPressed: () => _showStreamUrlDialog(context, widget.zoneId),
+      ),
+    );
+  }
+
+  Widget _buildFullScreenVideoPlayer(ZoneModel zone) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (zone.isCameraOnline)
+          _buildSimulatedLiveFeed(zone)
+        else
+          Container(
+            color: Colors.black,
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.videocam_off_rounded, size: 48, color: Colors.redAccent),
+                  const SizedBox(height: 8),
+                  Text('CAMERA NOT WORKING', style: GoogleFonts.outfit(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
           ),
-          IconButton(
-            tooltip: 'Simulate Camera Feed Status',
-            icon: const Icon(Icons.sync_alt_rounded, color: Colors.cyanAccent),
-            onPressed: () {
-              ref.read(inspectionActionControllerProvider.notifier).toggleCamera(widget.zoneId);
-            },
-          )
-        ],
-      ),
-      body: zoneAsync.when(
-        data: (zone) {
-          if (zone == null) {
-            return const Center(child: Text('Zone records unavailable', style: TextStyle(color: Colors.white)));
-          }
-          return _buildConsoleContent(context, zone);
-        },
-        loading: () => const Center(child: CircularProgressIndicator(color: Colors.cyanAccent)),
-        error: (err, _) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
-      ),
+
+        // Fullscreen Floating Top Controls
+        Positioned(
+          top: 16,
+          left: 16,
+          right: 16,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.65),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  tooltip: 'Exit Fullscreen',
+                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  onPressed: _toggleFullScreen,
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withOpacity(0.75),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white12),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'HEADCOUNT: ${zone.detectedCount}',
+                            style: GoogleFonts.outfit(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'GATE: ${zone.expectedCount}',
+                            style: GoogleFonts.outfit(color: Colors.white70, fontSize: 13),
+                          ),
+                          const SizedBox(width: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: zone.discrepancy > 5 ? Colors.redAccent : Colors.teal,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              'DEFICIT: -${zone.discrepancy}',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.65),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: IconButton(
+                  tooltip: 'Exit Fullscreen',
+                  icon: const Icon(Icons.fullscreen_exit_rounded, color: Colors.cyanAccent),
+                  onPressed: _toggleFullScreen,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -161,20 +303,41 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                             ),
                           ],
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: zone.discrepancy > 5 ? Colors.redAccent : Colors.teal,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            'DEFICIT: -${zone.discrepancy}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: zone.discrepancy > 5 ? Colors.redAccent : Colors.teal,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'DEFICIT: -${zone.discrepancy}',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 8),
+                            InkWell(
+                              onTap: _toggleFullScreen,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.15),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Icon(
+                                  Icons.fullscreen_rounded,
+                                  color: Colors.cyanAccent,
+                                  size: 18,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -349,39 +512,6 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
           else
             _buildFallbackGrid(),
 
-          // Live YOLO bounding box indicators
-          Positioned(
-            top: 70,
-            left: 40,
-            child: Container(
-              width: 80,
-              height: 110,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.greenAccent, width: 1.5),
-                color: Colors.greenAccent.withOpacity(0.08),
-              ),
-              child: const Align(
-                alignment: Alignment.topLeft,
-                child: Text(' person 0.94', style: TextStyle(color: Colors.greenAccent, fontSize: 9)),
-              ),
-            ),
-          ),
-          Positioned(
-            top: 60,
-            left: 140,
-            child: Container(
-              width: 75,
-              height: 120,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.greenAccent, width: 1.5),
-                color: Colors.greenAccent.withOpacity(0.08),
-              ),
-              child: const Align(
-                alignment: Alignment.topLeft,
-                child: Text(' person 0.91', style: TextStyle(color: Colors.greenAccent, fontSize: 9)),
-              ),
-            ),
-          ),
           Positioned(
             bottom: 12,
             right: 12,
@@ -501,6 +631,7 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
   Uint8List? _frameBytes;
   Timer? _poller;
   bool _isLoading = true;
+  bool _isFetching = false;
 
   @override
   void initState() {
@@ -523,22 +654,27 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
     // Fetch initial frame immediately
     _fetchSnapshot(snapshotUrl);
 
-    // Continuous smooth frame polling at ~15-20 fps
-    _poller = Timer.periodic(const Duration(milliseconds: 65), (_) {
+    // Continuous smooth frame polling at stable ~25 FPS with in-flight guard
+    _poller = Timer.periodic(const Duration(milliseconds: 40), (_) {
       _fetchSnapshot(snapshotUrl);
     });
   }
 
   Future<void> _fetchSnapshot(String url) async {
+    if (_isFetching) return;
+    _isFetching = true;
     try {
-      final res = await http.get(Uri.parse(url)).timeout(const Duration(milliseconds: 500));
+      final res = await http.get(Uri.parse(url)).timeout(const Duration(milliseconds: 300));
       if (res.statusCode == 200 && mounted && res.bodyBytes.isNotEmpty) {
         setState(() {
           _frameBytes = res.bodyBytes;
           _isLoading = false;
         });
       }
-    } catch (_) {}
+    } catch (_) {
+    } finally {
+      _isFetching = false;
+    }
   }
 
   @override

@@ -48,7 +48,7 @@ class AppwritePollerService {
           id: data['zoneId'] ?? 'zone-101',
           name: data['name'] ?? 'Central Assembly Hall',
           floor: data['floor'] ?? 'Floor 1',
-          cctvStreamUrl: 'http://127.0.0.1:8088/stream',
+          cctvStreamUrl: 'http://127.0.0.1:8089/stream',
           isCameraOnline: data['isCameraOnline'] == true,
           expectedCount: expected,
           detectedCount: detected,
