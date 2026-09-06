@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/alert_model.dart';
@@ -142,6 +144,8 @@ class SentinelDataRepository {
   SentinelDataRepository() {
     // Initial emit
     _emit();
+    // Load persisted dossiers from device storage
+    _loadSavedInspections();
     // Start live sync with Appwrite database (all zones)
     _appwritePoller.zonesStream.listen((updatedZones) {
       for (final updatedZone in updatedZones) {
@@ -155,6 +159,29 @@ class SentinelDataRepository {
       _emit();
     });
     _appwritePoller.startPolling();
+  }
+
+  Future<void> _loadSavedInspections() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedList = prefs.getStringList('saved_statutory_dossiers');
+      if (storedList != null && storedList.isNotEmpty) {
+        _inspections.clear();
+        for (final item in storedList) {
+          final Map<String, dynamic> json = jsonDecode(item);
+          _inspections.add(InspectionModel.fromJson(json, json['id'] ?? ''));
+        }
+        _emit();
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _saveInspectionsLocally() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final encodedList = _inspections.map((i) => jsonEncode(i.toJson())).toList();
+      await prefs.setStringList('saved_statutory_dossiers', encodedList);
+    } catch (_) {}
   }
 
   void _emit() {
@@ -193,6 +220,9 @@ class SentinelDataRepository {
     bool gpsVerified = true,
     double gpsDistanceMeters = 73.0,
     String? geoOverrideReason,
+    String? sitePhotoPath,
+    String? detailsPhotoPath,
+    String? geoTagLocation,
   }) {
     final inspectionId = const Uuid().v4();
     final idx = _zones.indexWhere((z) => z.id == zoneId);
@@ -225,8 +255,22 @@ class SentinelDataRepository {
       compliancePercent: compliance,
       verdict: physDisc > 5 ? 'NON_COMPLIANT' : 'COMPLIANT',
       auditHash: 'sha256_${DateTime.now().millisecondsSinceEpoch}_${zoneId.hashCode}',
+      sitePhotoPath: sitePhotoPath,
+      detailsPhotoPath: detailsPhotoPath,
+      geoTagLocation: geoTagLocation,
     );
     _inspections.insert(0, inspection);
+
+    // Save permanently in local device storage
+    _saveInspectionsLocally();
+
+    // Push updated telemetry to Appwrite database
+    _appwritePoller.updateZoneInDatabase(
+      zoneId: zoneId,
+      expectedCount: reported,
+      detectedCount: manualCountVerified,
+      isCameraOnline: currentZone?.isCameraOnline ?? true,
+    );
 
     if (idx != -1) {
       final current = _zones[idx];
@@ -484,6 +528,9 @@ class InspectionActionController extends StateNotifier<AsyncValue<void>> {
     bool gpsVerified = true,
     double gpsDistanceMeters = 73.0,
     String? geoOverrideReason,
+    String? sitePhotoPath,
+    String? detailsPhotoPath,
+    String? geoTagLocation,
   }) async {
     state = const AsyncValue.loading();
     await Future.delayed(const Duration(milliseconds: 300));
@@ -495,6 +542,9 @@ class InspectionActionController extends StateNotifier<AsyncValue<void>> {
       gpsVerified: gpsVerified,
       gpsDistanceMeters: gpsDistanceMeters,
       geoOverrideReason: geoOverrideReason,
+      sitePhotoPath: sitePhotoPath,
+      detailsPhotoPath: detailsPhotoPath,
+      geoTagLocation: geoTagLocation,
     );
     state = const AsyncValue.data(null);
   }

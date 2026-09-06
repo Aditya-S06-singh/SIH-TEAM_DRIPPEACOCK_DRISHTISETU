@@ -22,6 +22,10 @@ class InspectionModel {
   final String verdict; // 'COMPLIANT' | 'NON_COMPLIANT' | 'SHOW_CAUSE' | 'FUNDS_FROZEN'
   final String auditHash; // SHA-256 seal
 
+  final String? sitePhotoPath; // Geotagged site inspection photo
+  final String? detailsPhotoPath; // Photo of confirmed checklist/register details
+  final String? geoTagLocation; // Formatted lat, long & address
+
   const InspectionModel({
     required this.id,
     required this.zoneId,
@@ -43,6 +47,9 @@ class InspectionModel {
     this.compliancePercent = 71,
     this.verdict = 'NON_COMPLIANT',
     this.auditHash = 'a4f91c98e02d847b2933f11e92da304a',
+    this.sitePhotoPath,
+    this.detailsPhotoPath,
+    this.geoTagLocation,
   });
 
   InspectionModel copyWith({
@@ -66,6 +73,9 @@ class InspectionModel {
     int? compliancePercent,
     String? verdict,
     String? auditHash,
+    String? sitePhotoPath,
+    String? detailsPhotoPath,
+    String? geoTagLocation,
   }) {
     return InspectionModel(
       id: id ?? this.id,
@@ -88,6 +98,9 @@ class InspectionModel {
       compliancePercent: compliancePercent ?? this.compliancePercent,
       verdict: verdict ?? this.verdict,
       auditHash: auditHash ?? this.auditHash,
+      sitePhotoPath: sitePhotoPath ?? this.sitePhotoPath,
+      detailsPhotoPath: detailsPhotoPath ?? this.detailsPhotoPath,
+      geoTagLocation: geoTagLocation ?? this.geoTagLocation,
     );
   }
 
@@ -101,24 +114,55 @@ class InspectionModel {
     return InspectionModel(
       id: documentId,
       zoneId: json['zoneId'] as String? ?? '',
+      zoneName: json['zoneName'] as String? ?? 'Facility Zone',
       inspectorId: json['inspectorId'] as String? ?? '',
       inspectorName: json['inspectorName'] as String? ?? '',
       timestamp: parseDate(json['timestamp']),
       findings: json['findings'] as String? ?? '',
       manualCountVerified: (json['manualCountVerified'] as num?)?.toInt() ?? 0,
       status: json['status'] as String? ?? 'resolved',
+      gpsVerified: json['gpsVerified'] as bool? ?? true,
+      gpsDistanceMeters: (json['gpsDistanceMeters'] as num?)?.toDouble() ?? 73.0,
+      geoOverrideReason: json['geoOverrideReason'] as String?,
+      reportedBeneficiaries: (json['reportedBeneficiaries'] as num?)?.toInt() ?? 0,
+      aiDetectedCount: (json['aiDetectedCount'] as num?)?.toInt() ?? 0,
+      physicalHeadcount: (json['physicalHeadcount'] as num?)?.toInt() ?? 0,
+      aiDiscrepancy: (json['aiDiscrepancy'] as num?)?.toInt() ?? 0,
+      physicalDiscrepancy: (json['physicalDiscrepancy'] as num?)?.toInt() ?? 0,
+      compliancePercent: (json['compliancePercent'] as num?)?.toInt() ?? 100,
+      verdict: json['verdict'] as String? ?? 'COMPLIANT',
+      auditHash: json['auditHash'] as String? ?? '',
+      sitePhotoPath: json['sitePhotoPath'] as String?,
+      detailsPhotoPath: json['detailsPhotoPath'] as String?,
+      geoTagLocation: json['geoTagLocation'] as String?,
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      'id': id,
       'zoneId': zoneId,
+      'zoneName': zoneName,
       'inspectorId': inspectorId,
       'inspectorName': inspectorName,
       'timestamp': timestamp.toIso8601String(),
       'findings': findings,
       'manualCountVerified': manualCountVerified,
       'status': status,
+      'gpsVerified': gpsVerified,
+      'gpsDistanceMeters': gpsDistanceMeters,
+      'geoOverrideReason': geoOverrideReason,
+      'reportedBeneficiaries': reportedBeneficiaries,
+      'aiDetectedCount': aiDetectedCount,
+      'physicalHeadcount': physicalHeadcount,
+      'aiDiscrepancy': aiDiscrepancy,
+      'physicalDiscrepancy': physicalDiscrepancy,
+      'compliancePercent': compliancePercent,
+      'verdict': verdict,
+      'auditHash': auditHash,
+      'sitePhotoPath': sitePhotoPath,
+      'detailsPhotoPath': detailsPhotoPath,
+      'geoTagLocation': geoTagLocation,
     };
   }
 }
