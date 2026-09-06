@@ -11,6 +11,9 @@ class ZoneModel {
   final DateTime lastAuditTimestamp;
   final DateTime? uncheckedSince;
   final bool escalated;
+  final String callStatus; // 'idle' | 'ringing' | 'active' | 'ended'
+  final String? callerName;
+  final String? activeRoomUrl;
 
   const ZoneModel({
     required this.id,
@@ -25,6 +28,9 @@ class ZoneModel {
     required this.lastAuditTimestamp,
     this.uncheckedSince,
     required this.escalated,
+    this.callStatus = 'idle',
+    this.callerName,
+    this.activeRoomUrl,
   });
 
   ZoneModel copyWith({
@@ -40,6 +46,9 @@ class ZoneModel {
     DateTime? lastAuditTimestamp,
     DateTime? uncheckedSince,
     bool? escalated,
+    String? callStatus,
+    String? callerName,
+    String? activeRoomUrl,
   }) {
     return ZoneModel(
       id: id ?? this.id,
@@ -54,6 +63,9 @@ class ZoneModel {
       lastAuditTimestamp: lastAuditTimestamp ?? this.lastAuditTimestamp,
       uncheckedSince: uncheckedSince ?? this.uncheckedSince,
       escalated: escalated ?? this.escalated,
+      callStatus: callStatus ?? this.callStatus,
+      callerName: callerName ?? this.callerName,
+      activeRoomUrl: activeRoomUrl ?? this.activeRoomUrl,
     );
   }
 
@@ -80,6 +92,9 @@ class ZoneModel {
       lastAuditTimestamp: parseDate(json['lastAuditTimestamp']),
       uncheckedSince: json['uncheckedSince'] != null ? parseDate(json['uncheckedSince']) : null,
       escalated: json['escalated'] as bool? ?? false,
+      callStatus: json['callStatus'] as String? ?? 'idle',
+      callerName: json['callerName'] as String?,
+      activeRoomUrl: json['activeRoomUrl'] as String?,
     );
   }
 
@@ -96,6 +111,9 @@ class ZoneModel {
       'lastAuditTimestamp': lastAuditTimestamp.toIso8601String(),
       'uncheckedSince': uncheckedSince?.toIso8601String(),
       'escalated': escalated,
+      'callStatus': callStatus,
+      'callerName': callerName,
+      'activeRoomUrl': activeRoomUrl,
     };
   }
 }

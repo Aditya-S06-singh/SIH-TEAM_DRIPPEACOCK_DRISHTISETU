@@ -82,7 +82,7 @@ class _SentinelNodeScreenState extends State<SentinelNodeScreen> {
     try {
       final controller = CameraController(
         widget.cameras.first,
-        ResolutionPreset.medium,
+        ResolutionPreset.low,
         enableAudio: false,
       );
       _cameraController = controller;
@@ -101,12 +101,12 @@ class _SentinelNodeScreenState extends State<SentinelNodeScreen> {
 
   void _startFrameStreamingLoop() {
     _frameStreamTimer?.cancel();
-    // Capture and push frame every 500ms to avoid camera locking
-    _frameStreamTimer = Timer.periodic(const Duration(milliseconds: 500), (_) async {
+    // Non-blocking smooth 1000ms frame capture loop to keep UI thread at 60 FPS
+    _frameStreamTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) async {
       if (!_isCameraReady || _cameraController == null || _isCapturingFrame) return;
       if (!mounted) return;
+      _isCapturingFrame = true;
       try {
-        _isCapturingFrame = true;
         final xFile = await _cameraController!.takePicture();
         final bytes = await xFile.readAsBytes();
         _streamServer.updateFrame(bytes);

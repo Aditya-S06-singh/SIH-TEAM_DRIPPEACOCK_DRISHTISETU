@@ -5,6 +5,25 @@ All notable changes to the **DrishtiSetu** (Attendance & Surveillance Sentinel) 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.0] - 2026-09-06 (version-4.0)
+
+### Added
+- **Two-Way Jitsi WebRTC Video Conferencing (`VideoConferencingScreen`)**:
+  - Full bidirectional encrypted video call room directly inside the Main App (`https://meet.jit.si/dosje_audit_<zoneId>`).
+  - Picture-in-picture (PIP) floating selfie camera preview, camera flip, and microphone mute/unmute.
+  - Zero-cost, unmetered, cross-network WebRTC communication across 4G/5G and Wi-Fi.
+- **Dedicated Site Incharge Portal (`InchargePortalScreen`)**:
+  - Standalone portal for NGO/Project Managers to monitor assigned center attendance vs. AI CCTV tally.
+  - Real-time surprise inspection call listener that triggers audio/visual ringing dialogs with `[ACCEPT & CONNECT]`.
+- **Segmented Dual-Role Switcher (`LoginScreen`)**:
+  - Instant toggle between **`🏛️ Auditor Console`** and **`🏢 Site Incharge`** with facility selector dropdown.
+- **Architectural Camera Decoupling**:
+  - Separated interactive two-way video calls from the companion CCTV edge node (`drishtisetu_node`), completely eliminating Android camera sensor lockouts.
+- **DoSJE Problem Statement 26095 Full Compliance**:
+  - Satisfies all 7 required core deliverables including CCTV integration, random VC connectivity, PMU mobile inspection, and automated discrepancy detection.
+
+---
+
 ## [2.0.0] - 2026-09-05 (version-2.0)
 
 ### Added

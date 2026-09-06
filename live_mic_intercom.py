@@ -12,6 +12,8 @@ import numpy as np
 import urllib.request
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 
+import queue
+
 SAMPLE_RATE = 16000
 CHANNELS = 1
 BLOCK_SIZE = 1024  # ~64ms low latency chunks
@@ -22,20 +24,29 @@ AUDIO_ENDPOINTS = [
 
 is_streaming_active = False
 mic_stream = None
+audio_queue = queue.Queue(maxsize=10)
 
-def _send_chunk_worker(data_bytes):
-    for url in AUDIO_ENDPOINTS:
+def _persistent_audio_sender():
+    while True:
         try:
-            req = urllib.request.Request(
-                url,
-                data=data_bytes,
-                headers={'Content-Type': 'application/octet-stream'},
-                method='POST'
-            )
-            with urllib.request.urlopen(req, timeout=0.4):
-                return
+            data_bytes = audio_queue.get()
+            for url in AUDIO_ENDPOINTS:
+                try:
+                    req = urllib.request.Request(
+                        url,
+                        data=data_bytes,
+                        headers={'Content-Type': 'application/octet-stream'},
+                        method='POST'
+                    )
+                    with urllib.request.urlopen(req, timeout=0.25):
+                        break
+                except Exception:
+                    continue
         except Exception:
-            continue
+            pass
+
+sender_thread = threading.Thread(target=_persistent_audio_sender, daemon=True)
+sender_thread.start()
 
 def audio_callback(indata, frames, time_info, status):
     global is_streaming_active
@@ -44,7 +55,10 @@ def audio_callback(indata, frames, time_info, status):
     
     # Convert float32 input from sounddevice to 16-bit signed PCM bytes
     pcm16 = (np.clip(indata, -1.0, 1.0) * 32767).astype(np.int16).tobytes()
-    threading.Thread(target=_send_chunk_worker, args=(pcm16,), daemon=True).start()
+    try:
+        audio_queue.put_nowait(pcm16)
+    except queue.Full:
+        pass  # Drop stale frame to prevent audio lag/latency accumulation
 
 class MicControlServer(BaseHTTPRequestHandler):
     def do_POST(self):

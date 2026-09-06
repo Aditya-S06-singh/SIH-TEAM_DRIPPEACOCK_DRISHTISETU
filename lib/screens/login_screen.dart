@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../providers/audit_providers.dart';
 import 'dashboard_screen.dart';
+import 'incharge_portal_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -19,12 +20,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController(text: 'Inspector#2026');
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _isAuditorRole = true; // true = Ministry Auditor, false = Site Incharge
+  String _selectedFacilityId = 'zone-101';
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  void _switchRole(bool isAuditor) {
+    setState(() {
+      _isAuditorRole = isAuditor;
+      if (isAuditor) {
+        _emailController.text = 'auditor.lead@sentinel.org';
+        _passwordController.text = 'Inspector#2026';
+      } else {
+        _emailController.text = 'incharge.delhi@dosje-rehab.org';
+        _passwordController.text = 'Incharge#2026';
+      }
+    });
   }
 
   Future<void> _handleLogin() async {
@@ -39,9 +55,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _passwordController.text,
           );
       setState(() => _isLoading = false);
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const DashboardScreen()),
-      );
+
+      if (_isAuditorRole) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => InchargePortalScreen(
+              assignedZoneId: _selectedFacilityId,
+              inchargeName: 'Dr. Ramesh Kumar (Project Incharge)',
+            ),
+          ),
+        );
+      }
     }
   }
 
@@ -101,16 +129,116 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       color: Colors.white60,
                     ),
                   ),
-                  const SizedBox(height: 38),
+                  const SizedBox(height: 28),
+
+                  // Modern Segmented Role Switcher
+                  Container(
+                    padding: const EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF131920),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF26303D)),
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => _switchRole(true),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: _isAuditorRole ? const Color(0xFF00B4D8) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                '🏛️ Auditor Console',
+                                style: TextStyle(
+                                  color: _isAuditorRole ? Colors.white : Colors.white60,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () => _switchRole(false),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              decoration: BoxDecoration(
+                                color: !_isAuditorRole ? Colors.teal : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                '🏢 Site Incharge',
+                                style: TextStyle(
+                                  color: !_isAuditorRole ? Colors.white : Colors.white60,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+
+                  if (!_isAuditorRole) ...[
+                    // Facility Selector for Incharge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF131920),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF26303D)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String>(
+                          value: _selectedFacilityId,
+                          isExpanded: true,
+                          dropdownColor: const Color(0xFF131920),
+                          icon: const Icon(Icons.arrow_drop_down, color: Colors.tealAccent),
+                          items: const [
+                            DropdownMenuItem(
+                              value: 'zone-101',
+                              child: Text('Central Assembly Hall (Floor 1)', style: TextStyle(color: Colors.white, fontSize: 13)),
+                            ),
+                            DropdownMenuItem(
+                              value: 'zone-102',
+                              child: Text('Robotics Workshop Block B (Basement 1)', style: TextStyle(color: Colors.white, fontSize: 13)),
+                            ),
+                            DropdownMenuItem(
+                              value: 'zone-103',
+                              child: Text('Server Room & Telecom Hub (Floor 3)', style: TextStyle(color: Colors.white, fontSize: 13)),
+                            ),
+                          ],
+                          onChanged: (val) {
+                            if (val != null) setState(() => _selectedFacilityId = val);
+                          },
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                  ],
+
                   TextFormField(
                     controller: _emailController,
                     keyboardType: TextInputType.emailAddress,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      labelText: 'Auditor Official Email',
+                      labelText: _isAuditorRole ? 'Auditor Official Email' : 'Site Incharge ID',
                       labelStyle: const TextStyle(color: Colors.white60),
-                      prefixIcon: const Icon(Icons.badge_outlined,
-                          color: Colors.cyanAccent),
+                      prefixIcon: Icon(
+                        _isAuditorRole ? Icons.badge_outlined : Icons.business_center_outlined,
+                        color: _isAuditorRole ? Colors.cyanAccent : Colors.tealAccent,
+                      ),
                       filled: true,
                       fillColor: const Color(0xFF131920),
                       enabledBorder: OutlineInputBorder(
@@ -119,7 +247,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Colors.cyanAccent),
+                        borderSide: BorderSide(color: _isAuditorRole ? Colors.cyanAccent : Colors.tealAccent),
                       ),
                     ),
                     validator: (v) => v == null || !v.contains('@')

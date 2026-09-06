@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/zone_model.dart';
 import '../providers/audit_providers.dart';
+import 'video_conferencing_screen.dart';
 
 class LiveInspectionScreen extends ConsumerStatefulWidget {
   final String zoneId;
@@ -95,36 +96,45 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
       final msg = messageController.text.trim();
       final bodyBytes = msg.isNotEmpty ? msg.codeUnits : 'Auditor speaking: Please confirm headcount verification.'.codeUnits;
 
-      try {
-        await http.post(
-          Uri.parse(nodeAudioUri),
-          headers: {'Content-Type': 'application/octet-stream'},
-          body: bodyBytes,
-        ).timeout(const Duration(seconds: 3));
-      } catch (e) {
-        // Fallback to localhost if router AP client isolation blocks direct Wi-Fi subnet packets
+      final endpoints = [
+        nodeAudioUri,
+        'http://10.0.2.2:8088/audio/in',
+        'http://127.0.0.1:8088/audio/in',
+        'http://192.168.1.2:8088/audio/in',
+      ];
+
+      bool sent = false;
+      for (final endpoint in endpoints) {
         try {
-          final fallbackUri = 'http://127.0.0.1:8088/audio/in';
-          await http.post(
-            Uri.parse(fallbackUri),
+          final res = await http.post(
+            Uri.parse(endpoint),
             headers: {'Content-Type': 'application/octet-stream'},
             body: bodyBytes,
-          ).timeout(const Duration(seconds: 3));
-        } catch (_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Could not reach phone node at $nodeAudioUri. Ensure phone app is active.'),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
+          ).timeout(const Duration(milliseconds: 1200));
+          if (res.statusCode == 200) {
+            sent = true;
+            break;
           }
-        }
-      } finally {
-        Future.delayed(const Duration(seconds: 4), () {
-          if (mounted) setState(() => _isTalkingToFacility = false);
-        });
+        } catch (_) {}
       }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              sent
+                  ? '🔊 TRANSMITTED: Voice message broadcast to phone speaker!'
+                  : 'Could not reach phone node. Check phone network or connection.',
+            ),
+            backgroundColor: sent ? Colors.teal : Colors.redAccent,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _isTalkingToFacility = false);
+      });
     }
   }
 
@@ -549,29 +559,60 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                 ),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isLiveWalkieTalkieActive ? Colors.redAccent : const Color(0xFF00B4D8),
+                    backgroundColor: const Color(0xFF7B2CBF),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: const Icon(Icons.video_call, size: 15),
+                  label: const Text(
+                    'VC CALL',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () {
+                    ref.read(inspectionActionControllerProvider.notifier).startVideoCall(zone.id, 'Lead Auditor');
+                    final room = zone.activeRoomUrl ?? 'https://meet.jit.si/dosje_audit_${zone.id.replaceAll('-', '_')}';
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => VideoConferencingScreen(
+                          roomUrl: room,
+                          centerName: zone.name,
+                          callerRole: 'auditor',
+                          onCallEnded: () {
+                            ref.read(inspectionActionControllerProvider.notifier).endVideoCall(zone.id);
+                          },
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(width: 6),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isLiveWalkieTalkieActive ? Colors.redAccent : const Color(0xFF00B4D8),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   icon: Icon(_isLiveWalkieTalkieActive ? Icons.mic : Icons.podcasts, size: 14),
                   label: Text(
-                    _isLiveWalkieTalkieActive ? 'LIVE MIC ON' : 'WALKIE-TALKIE',
+                    _isLiveWalkieTalkieActive ? 'MIC ON' : 'WALKIE',
                     style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                   onPressed: _toggleLiveWalkieTalkie,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isTalkingToFacility ? Colors.redAccent : Colors.teal,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   icon: Icon(_isTalkingToFacility ? Icons.call_end : Icons.record_voice_over, size: 14),
                   label: Text(
-                    _isTalkingToFacility ? 'STOP' : 'MESSAGE',
+                    _isTalkingToFacility ? 'STOP' : 'TTS MSG',
                     style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                   onPressed: () => _toggleTalkback(zone.cctvStreamUrl),
@@ -864,6 +905,7 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
   Uint8List? _frameBytes;
   Timer? _poller;
   bool _isFetching = false;
+  final http.Client _httpClient = http.Client();
 
   @override
   void initState() {
@@ -886,8 +928,8 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
     // Fetch initial frame immediately
     _fetchSnapshot(snapshotUrl);
 
-    // Continuous smooth frame polling at stable ~25 FPS with in-flight guard
-    _poller = Timer.periodic(const Duration(milliseconds: 40), (_) {
+    // Highly optimized ~5-6 FPS polling interval (180ms) with in-flight guard to keep Flutter UI at smooth 60 FPS
+    _poller = Timer.periodic(const Duration(milliseconds: 180), (_) {
       _fetchSnapshot(snapshotUrl);
     });
   }
@@ -896,10 +938,21 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
     if (_isFetching) return;
     _isFetching = true;
     try {
-      final res = await http.get(Uri.parse(url)).timeout(const Duration(milliseconds: 300));
-      if (res.statusCode == 200 && mounted && res.bodyBytes.isNotEmpty) {
+      var targetUri = Uri.parse(url);
+      http.Response? res;
+      try {
+        res = await _httpClient.get(targetUri).timeout(const Duration(milliseconds: 350));
+      } catch (_) {
+        // If 127.0.0.1 is unreachable inside the Android emulator, automatically try the 10.0.2.2 gateway
+        if (url.contains('127.0.0.1')) {
+          final emulatorGatewayUrl = url.replaceAll('127.0.0.1', '10.0.2.2');
+          res = await _httpClient.get(Uri.parse(emulatorGatewayUrl)).timeout(const Duration(milliseconds: 350));
+        }
+      }
+      final response = res;
+      if (response != null && response.statusCode == 200 && mounted && response.bodyBytes.isNotEmpty) {
         setState(() {
-          _frameBytes = res.bodyBytes;
+          _frameBytes = response.bodyBytes;
         });
       }
     } catch (_) {
@@ -911,6 +964,7 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
   @override
   void dispose() {
     _poller?.cancel();
+    _httpClient.close();
     super.dispose();
   }
 
@@ -921,6 +975,8 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
         _frameBytes!,
         fit: BoxFit.cover,
         gaplessPlayback: true,
+        cacheWidth: 720,
+        filterQuality: FilterQuality.low,
       );
     }
     return Center(

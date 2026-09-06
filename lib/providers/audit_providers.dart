@@ -265,6 +265,40 @@ class SentinelDataRepository {
     }
     _emit();
   }
+
+  void startVideoCall(String zoneId, String callerName) {
+    final idx = _zones.indexWhere((z) => z.id == zoneId);
+    final roomName = 'dosje_audit_${zoneId.replaceAll('-', '_')}';
+    final jitsiUrl = 'https://meet.jit.si/$roomName';
+
+    if (idx != -1) {
+      _zones[idx] = _zones[idx].copyWith(
+        callStatus: 'ringing',
+        callerName: callerName,
+        activeRoomUrl: jitsiUrl,
+      );
+      _emit();
+    }
+  }
+
+  void acceptVideoCall(String zoneId) {
+    final idx = _zones.indexWhere((z) => z.id == zoneId);
+    if (idx != -1) {
+      _zones[idx] = _zones[idx].copyWith(callStatus: 'active');
+      _emit();
+    }
+  }
+
+  void endVideoCall(String zoneId) {
+    final idx = _zones.indexWhere((z) => z.id == zoneId);
+    if (idx != -1) {
+      _zones[idx] = _zones[idx].copyWith(
+        callStatus: 'ended',
+        activeRoomUrl: null,
+      );
+      _emit();
+    }
+  }
 }
 
 // -------------------------------------------------------------
@@ -365,6 +399,18 @@ class InspectionActionController extends StateNotifier<AsyncValue<void>> {
 
   Future<void> setStreamUrl(String zoneId, String streamUrl) async {
     _repo.setStreamUrl(zoneId, streamUrl);
+  }
+
+  void startVideoCall(String zoneId, String callerName) {
+    _repo.startVideoCall(zoneId, callerName);
+  }
+
+  void acceptVideoCall(String zoneId) {
+    _repo.acceptVideoCall(zoneId);
+  }
+
+  void endVideoCall(String zoneId) {
+    _repo.endVideoCall(zoneId);
   }
 }
 
