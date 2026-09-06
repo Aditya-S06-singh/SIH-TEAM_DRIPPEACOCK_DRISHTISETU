@@ -95,36 +95,45 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
       final msg = messageController.text.trim();
       final bodyBytes = msg.isNotEmpty ? msg.codeUnits : 'Auditor speaking: Please confirm headcount verification.'.codeUnits;
 
-      try {
-        await http.post(
-          Uri.parse(nodeAudioUri),
-          headers: {'Content-Type': 'application/octet-stream'},
-          body: bodyBytes,
-        ).timeout(const Duration(seconds: 3));
-      } catch (e) {
-        // Fallback to localhost if router AP client isolation blocks direct Wi-Fi subnet packets
+      final endpoints = [
+        nodeAudioUri,
+        'http://10.0.2.2:8088/audio/in',
+        'http://127.0.0.1:8088/audio/in',
+        'http://192.168.1.2:8088/audio/in',
+      ];
+
+      bool sent = false;
+      for (final endpoint in endpoints) {
         try {
-          final fallbackUri = 'http://127.0.0.1:8088/audio/in';
-          await http.post(
-            Uri.parse(fallbackUri),
+          final res = await http.post(
+            Uri.parse(endpoint),
             headers: {'Content-Type': 'application/octet-stream'},
             body: bodyBytes,
-          ).timeout(const Duration(seconds: 3));
-        } catch (_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Could not reach phone node at $nodeAudioUri. Ensure phone app is active.'),
-                backgroundColor: Colors.redAccent,
-              ),
-            );
+          ).timeout(const Duration(milliseconds: 1200));
+          if (res.statusCode == 200) {
+            sent = true;
+            break;
           }
-        }
-      } finally {
-        Future.delayed(const Duration(seconds: 4), () {
-          if (mounted) setState(() => _isTalkingToFacility = false);
-        });
+        } catch (_) {}
       }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              sent
+                  ? '🔊 TRANSMITTED: Voice message broadcast to phone speaker!'
+                  : 'Could not reach phone node. Check phone network or connection.',
+            ),
+            backgroundColor: sent ? Colors.teal : Colors.redAccent,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+
+      Future.delayed(const Duration(seconds: 4), () {
+        if (mounted) setState(() => _isTalkingToFacility = false);
+      });
     }
   }
 
