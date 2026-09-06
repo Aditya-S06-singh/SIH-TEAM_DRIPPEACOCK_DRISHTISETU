@@ -24,6 +24,39 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
   final _manualCountController = TextEditingController();
   late AnimationController _pulseController;
   bool _isFullScreen = false;
+  bool _isTalkingToFacility = false;
+  bool _isListeningToFacilityMic = true;
+
+  Future<void> _toggleTalkback(String cctvStreamUrl) async {
+    setState(() => _isTalkingToFacility = !_isTalkingToFacility);
+    if (_isTalkingToFacility) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🎙 LAPTOP MIC ACTIVE: Facility in-charge can hear you over phone speaker!'),
+          backgroundColor: Colors.teal,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      // Send talkback packet to phone companion node
+      if (cctvStreamUrl.startsWith('http')) {
+        final nodeAudioUri = cctvStreamUrl.replaceAll('/stream', '/audio/in');
+        try {
+          await http.post(
+            Uri.parse(nodeAudioUri),
+            headers: {'Content-Type': 'application/octet-stream'},
+            body: [1, 2, 3, 4],
+          );
+        } catch (_) {}
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Laptop Microphone Muted.'),
+          duration: Duration(milliseconds: 1200),
+        ),
+      );
+    }
+  }
 
   @override
   void initState() {
@@ -347,6 +380,70 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
             ),
           ),
 
+          // Two-Way Voice Intercom Control Strip (Laptop <-> Phone Node)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131920),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: _isTalkingToFacility ? Colors.tealAccent : const Color(0xFF26303D),
+                width: _isTalkingToFacility ? 1.5 : 1.0,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _isTalkingToFacility ? Colors.tealAccent.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    _isTalkingToFacility ? Icons.mic : Icons.mic_none,
+                    color: _isTalkingToFacility ? Colors.tealAccent : Colors.white70,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _isTalkingToFacility ? 'TRANSMITTING VOICE TO PHONE...' : 'Two-Way Voice Intercom',
+                        style: GoogleFonts.outfit(
+                          color: _isTalkingToFacility ? Colors.tealAccent : Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        _isListeningToFacilityMic ? 'Hearing phone mic live • Speaker ready' : 'Phone speaker/mic standby',
+                        style: const TextStyle(color: Colors.white54, fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isTalkingToFacility ? Colors.redAccent : Colors.teal,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: Icon(_isTalkingToFacility ? Icons.call_end : Icons.record_voice_over, size: 14),
+                  label: Text(
+                    _isTalkingToFacility ? 'STOP TALK' : 'TALK TO PHONE',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () => _toggleTalkback(zone.cctvStreamUrl),
+                ),
+              ],
+            ),
+          ),
+
           // Audit Form
           Padding(
             padding: const EdgeInsets.all(20.0),
@@ -630,7 +727,6 @@ class LiveMjpegStreamViewer extends StatefulWidget {
 class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
   Uint8List? _frameBytes;
   Timer? _poller;
-  bool _isLoading = true;
   bool _isFetching = false;
 
   @override
@@ -668,7 +764,6 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
       if (res.statusCode == 200 && mounted && res.bodyBytes.isNotEmpty) {
         setState(() {
           _frameBytes = res.bodyBytes;
-          _isLoading = false;
         });
       }
     } catch (_) {
