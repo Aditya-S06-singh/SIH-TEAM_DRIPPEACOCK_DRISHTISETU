@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/whatsapp_call_service.dart';
 
 class VideoConferencingScreen extends StatefulWidget {
   final String roomUrl;
   final String centerName;
   final String callerRole;
+  final String? inchargeName;
+  final String? inchargePhone;
   final VoidCallback? onCallEnded;
 
   const VideoConferencingScreen({
@@ -13,6 +16,8 @@ class VideoConferencingScreen extends StatefulWidget {
     required this.roomUrl,
     required this.centerName,
     required this.callerRole,
+    this.inchargeName,
+    this.inchargePhone,
     this.onCallEnded,
   });
 
@@ -29,12 +34,12 @@ class _VideoConferencingScreenState extends State<VideoConferencingScreen> {
   @override
   void initState() {
     super.initState();
-    Future.delayed(const Duration(milliseconds: 1200), () {
+    Future.delayed(const Duration(milliseconds: 600), () {
       if (mounted) setState(() => _isConnecting = false);
     });
   }
 
-  Future<void> _launchExternalJitsiBrowser() async {
+  Future<void> _launchExternalRoom() async {
     try {
       final uri = Uri.parse(widget.roomUrl);
       if (await canLaunchUrl(uri)) {
@@ -54,7 +59,7 @@ class _VideoConferencingScreenState extends State<VideoConferencingScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             backgroundColor: const Color(0xFF131920),
-            content: Text('Jitsi Room: ${widget.roomUrl}'),
+            content: Text('Room URL: ${widget.roomUrl}'),
           ),
         );
       }
@@ -63,6 +68,9 @@ class _VideoConferencingScreenState extends State<VideoConferencingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final targetPhone = widget.inchargePhone ?? '+919876543210';
+    final targetName = widget.inchargeName ?? 'Site Incharge';
+
     return Scaffold(
       backgroundColor: const Color(0xFF070B10),
       body: SafeArea(
@@ -71,13 +79,13 @@ class _VideoConferencingScreenState extends State<VideoConferencingScreen> {
           children: [
             // 1. Main Remote Participant View / Virtual Room Canvas
             Container(
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
                   colors: [
-                    const Color(0xFF0F1722),
-                    const Color(0xFF0A1017),
+                    Color(0xFF0F1722),
+                    Color(0xFF0A1017),
                     Colors.black,
                   ],
                 ),
@@ -90,84 +98,153 @@ class _VideoConferencingScreenState extends State<VideoConferencingScreen> {
                           const CircularProgressIndicator(color: Colors.cyanAccent),
                           const SizedBox(height: 16),
                           Text(
-                            'Connecting to Secure Encrypted Jitsi Room...',
+                            'Initializing Secure Inspection Stream...',
                             style: GoogleFonts.outfit(color: Colors.white, fontSize: 14),
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            widget.roomUrl,
-                            style: const TextStyle(color: Colors.white38, fontSize: 10),
                           ),
                         ],
                       )
-                    : Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            width: 110,
-                            height: 110,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: const Color(0xFF131F2E),
-                              border: Border.all(color: Colors.cyanAccent, width: 2),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.cyanAccent.withOpacity(0.35),
-                                  blurRadius: 30,
-                                  spreadRadius: 4,
+                    : SingleChildScrollView(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 40),
+                            // Avatar
+                            Container(
+                              width: 100,
+                              height: 100,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: const Color(0xFF131F2E),
+                                border: Border.all(color: const Color(0xFF25D366), width: 2.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF25D366).withOpacity(0.35),
+                                    blurRadius: 30,
+                                    spreadRadius: 4,
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(
+                                Icons.videocam_rounded,
+                                size: 54,
+                                color: Color(0xFF25D366),
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            Text(
+                              targetName,
+                              style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              targetPhone,
+                              style: GoogleFonts.robotoMono(
+                                color: const Color(0xFF25D366),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.greenAccent.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.greenAccent),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.verified_user_rounded, color: Colors.greenAccent, size: 12),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Verified DoSJE Facility Incharge',
+                                    style: TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 28),
+
+                            // Prominent WhatsApp Action Card
+                            Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 24),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF101B14),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: const Color(0xFF25D366).withOpacity(0.4)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF25D366).withOpacity(0.1),
+                                    blurRadius: 16,
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                children: [
+                                  Text(
+                                    '1-Tap WhatsApp Inspection Call',
+                                    style: GoogleFonts.outfit(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    'Instantly dispatches surprise video inspection notice & launches WhatsApp video dialer.',
+                                    textAlign: TextAlign.center,
+                                    style: GoogleFonts.outfit(color: Colors.white60, fontSize: 11),
+                                  ),
+                                  const SizedBox(height: 14),
+                                  ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF25D366),
+                                      foregroundColor: Colors.white,
+                                      elevation: 6,
+                                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                    icon: const Icon(Icons.video_call_rounded, size: 22),
+                                    label: Text(
+                                      'START WHATSAPP VIDEO CALL',
+                                      style: GoogleFonts.outfit(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      WhatsAppCallService.startWhatsAppVideoCall(
+                                        context: context,
+                                        phoneNumber: targetPhone,
+                                        inchargeName: targetName,
+                                        centerName: widget.centerName,
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 14),
+                            if (widget.roomUrl.isNotEmpty)
+                              TextButton.icon(
+                                style: TextButton.styleFrom(
+                                  foregroundColor: Colors.white54,
                                 ),
-                              ],
-                            ),
-                            child: const Icon(
-                              Icons.person_rounded,
-                              size: 64,
-                              color: Colors.cyanAccent,
-                            ),
-                          ),
-                          const SizedBox(height: 18),
-                          Text(
-                            widget.callerRole == 'auditor'
-                                ? 'Site Incharge (Live)'
-                                : 'MoSJE Lead Auditor (Live)',
-                            style: GoogleFonts.outfit(
-                              color: Colors.white,
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.greenAccent.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: Colors.greenAccent),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: const [
-                                Icon(Icons.lock_outline, color: Colors.greenAccent, size: 12),
-                                SizedBox(width: 4),
-                                Text(
-                                  'WebRTC E2E Encrypted • 1080p HD',
-                                  style: TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.bold),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
-                          ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0077B6),
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            ),
-                            icon: const Icon(Icons.open_in_browser, size: 16),
-                            label: const Text('Open Native Jitsi Room in App/Browser'),
-                            onPressed: _launchExternalJitsiBrowser,
-                          ),
-                        ],
+                                icon: const Icon(Icons.open_in_new, size: 14),
+                                label: const Text('Secondary WebRTC Room Link', style: TextStyle(fontSize: 11)),
+                                onPressed: _launchExternalRoom,
+                              ),
+                            const SizedBox(height: 60),
+                          ],
+                        ),
                       ),
               ),
             ),
@@ -177,8 +254,8 @@ class _VideoConferencingScreenState extends State<VideoConferencingScreen> {
               top: 70,
               right: 16,
               child: Container(
-                width: 105,
-                height: 145,
+                width: 95,
+                height: 130,
                 decoration: BoxDecoration(
                   color: const Color(0xFF16212E),
                   borderRadius: BorderRadius.circular(12),
@@ -207,7 +284,7 @@ class _VideoConferencingScreenState extends State<VideoConferencingScreen> {
                                   Icon(
                                     _isFrontCamera ? Icons.face : Icons.camera_rear,
                                     color: Colors.tealAccent,
-                                    size: 32,
+                                    size: 28,
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
@@ -276,8 +353,11 @@ class _VideoConferencingScreenState extends State<VideoConferencingScreen> {
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.fullscreen_rounded, color: Colors.cyanAccent),
-                      onPressed: _launchExternalJitsiBrowser,
+                      icon: const Icon(Icons.close, color: Colors.white70, size: 20),
+                      onPressed: () {
+                        widget.onCallEnded?.call();
+                        Navigator.pop(context);
+                      },
                     ),
                   ],
                 ),

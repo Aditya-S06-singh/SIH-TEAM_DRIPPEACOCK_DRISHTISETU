@@ -14,6 +14,8 @@ class ZoneModel {
   final String callStatus; // 'idle' | 'ringing' | 'active' | 'ended'
   final String? callerName;
   final String? activeRoomUrl;
+  final String? inchargePhone;
+  final String? inchargeName;
 
   const ZoneModel({
     required this.id,
@@ -31,6 +33,8 @@ class ZoneModel {
     this.callStatus = 'idle',
     this.callerName,
     this.activeRoomUrl,
+    this.inchargePhone,
+    this.inchargeName,
   });
 
   ZoneModel copyWith({
@@ -49,6 +53,8 @@ class ZoneModel {
     String? callStatus,
     String? callerName,
     String? activeRoomUrl,
+    String? inchargePhone,
+    String? inchargeName,
   }) {
     return ZoneModel(
       id: id ?? this.id,
@@ -66,6 +72,8 @@ class ZoneModel {
       callStatus: callStatus ?? this.callStatus,
       callerName: callerName ?? this.callerName,
       activeRoomUrl: activeRoomUrl ?? this.activeRoomUrl,
+      inchargePhone: inchargePhone ?? this.inchargePhone,
+      inchargeName: inchargeName ?? this.inchargeName,
     );
   }
 
@@ -95,6 +103,8 @@ class ZoneModel {
       callStatus: json['callStatus'] as String? ?? 'idle',
       callerName: json['callerName'] as String?,
       activeRoomUrl: json['activeRoomUrl'] as String?,
+      inchargePhone: json['inchargePhone'] as String?,
+      inchargeName: json['inchargeName'] as String?,
     );
   }
 
@@ -114,6 +124,8 @@ class ZoneModel {
       'callStatus': callStatus,
       'callerName': callerName,
       'activeRoomUrl': activeRoomUrl,
+      'inchargePhone': inchargePhone,
+      'inchargeName': inchargeName,
     };
   }
 }

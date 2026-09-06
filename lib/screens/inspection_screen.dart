@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 import '../models/zone_model.dart';
 import '../providers/audit_providers.dart';
+import '../services/whatsapp_call_service.dart';
 import 'video_conferencing_screen.dart';
 
 class LiveInspectionScreen extends ConsumerStatefulWidget {
@@ -511,7 +512,7 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
             ),
           ),
 
-          // Two-Way Voice Intercom Control Strip (Laptop <-> Phone Node)
+          // Two-Way Voice Intercom & Direct Calling Control Strip (Laptop <-> Phone Node)
           Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             padding: const EdgeInsets.all(12),
@@ -523,99 +524,136 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                 width: _isTalkingToFacility ? 1.5 : 1.0,
               ),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: _isTalkingToFacility ? Colors.tealAccent.withOpacity(0.2) : Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    _isTalkingToFacility ? Icons.mic : Icons.mic_none,
-                    color: _isTalkingToFacility ? Colors.tealAccent : Colors.white70,
-                    size: 20,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        _isTalkingToFacility ? 'TRANSMITTING VOICE TO PHONE...' : 'Two-Way Voice Intercom',
-                        style: GoogleFonts.outfit(
-                          color: _isTalkingToFacility ? Colors.tealAccent : Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                        ),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _isTalkingToFacility ? Colors.tealAccent.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                      Text(
-                        _isListeningToFacilityMic ? 'Hearing phone mic live • Speaker ready' : 'Phone speaker/mic standby',
-                        style: const TextStyle(color: Colors.white54, fontSize: 10),
+                      child: Icon(
+                        _isTalkingToFacility ? Icons.mic : Icons.mic_none,
+                        color: _isTalkingToFacility ? Colors.tealAccent : Colors.white70,
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _isTalkingToFacility ? 'TRANSMITTING VOICE TO PHONE...' : 'Intercom & Remote VC Hub',
+                            style: GoogleFonts.outfit(
+                              color: _isTalkingToFacility ? Colors.tealAccent : Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Text(
+                            'Site Incharge: ${zone.inchargeName ?? "Dr. Ramesh Kumar"} (${zone.inchargePhone ?? "+919876543210"})',
+                            style: const TextStyle(color: Colors.white54, fontSize: 10),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    children: [
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF25D366),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        icon: const Icon(Icons.video_call, size: 16),
+                        label: const Text(
+                          'WHATSAPP VC',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () {
+                          ref.read(inspectionActionControllerProvider.notifier).startVideoCall(zone.id, 'Lead Auditor');
+                          WhatsAppCallService.startWhatsAppInspectionCall(
+                            context: context,
+                            zone: zone,
+                            auditorName: 'Lead Auditor (DoSJE)',
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF7B2CBF),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        icon: const Icon(Icons.meeting_room, size: 15),
+                        label: const Text(
+                          'ROOM VC',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () {
+                          ref.read(inspectionActionControllerProvider.notifier).startVideoCall(zone.id, 'Lead Auditor');
+                          final room = zone.activeRoomUrl ?? 'https://meet.jit.si/dosje_audit_${zone.id.replaceAll('-', '_')}';
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => VideoConferencingScreen(
+                                roomUrl: room,
+                                centerName: zone.name,
+                                callerRole: 'auditor',
+                                inchargeName: zone.inchargeName,
+                                inchargePhone: zone.inchargePhone,
+                                onCallEnded: () {
+                                  ref.read(inspectionActionControllerProvider.notifier).endVideoCall(zone.id);
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isLiveWalkieTalkieActive ? Colors.redAccent : const Color(0xFF00B4D8),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        icon: Icon(_isLiveWalkieTalkieActive ? Icons.mic : Icons.podcasts, size: 14),
+                        label: Text(
+                          _isLiveWalkieTalkieActive ? 'MIC ON' : 'WALKIE',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: _toggleLiveWalkieTalkie,
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isTalkingToFacility ? Colors.redAccent : Colors.teal,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                        icon: Icon(_isTalkingToFacility ? Icons.call_end : Icons.record_voice_over, size: 14),
+                        label: Text(
+                          _isTalkingToFacility ? 'STOP' : 'TTS MSG',
+                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                        ),
+                        onPressed: () => _toggleTalkback(zone.cctvStreamUrl),
                       ),
                     ],
                   ),
-                ),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF7B2CBF),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  icon: const Icon(Icons.video_call, size: 15),
-                  label: const Text(
-                    'VC CALL',
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                  onPressed: () {
-                    ref.read(inspectionActionControllerProvider.notifier).startVideoCall(zone.id, 'Lead Auditor');
-                    final room = zone.activeRoomUrl ?? 'https://meet.jit.si/dosje_audit_${zone.id.replaceAll('-', '_')}';
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => VideoConferencingScreen(
-                          roomUrl: room,
-                          centerName: zone.name,
-                          callerRole: 'auditor',
-                          onCallEnded: () {
-                            ref.read(inspectionActionControllerProvider.notifier).endVideoCall(zone.id);
-                          },
-                        ),
-                      ),
-                    );
-                  },
-                ),
-                const SizedBox(width: 6),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isLiveWalkieTalkieActive ? Colors.redAccent : const Color(0xFF00B4D8),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  icon: Icon(_isLiveWalkieTalkieActive ? Icons.mic : Icons.podcasts, size: 14),
-                  label: Text(
-                    _isLiveWalkieTalkieActive ? 'MIC ON' : 'WALKIE',
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                  onPressed: _toggleLiveWalkieTalkie,
-                ),
-                const SizedBox(width: 6),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isTalkingToFacility ? Colors.redAccent : Colors.teal,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  icon: Icon(_isTalkingToFacility ? Icons.call_end : Icons.record_voice_over, size: 14),
-                  label: Text(
-                    _isTalkingToFacility ? 'STOP' : 'TTS MSG',
-                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                  onPressed: () => _toggleTalkback(zone.cctvStreamUrl),
                 ),
               ],
             ),

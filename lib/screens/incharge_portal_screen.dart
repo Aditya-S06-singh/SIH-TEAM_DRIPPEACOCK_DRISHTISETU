@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../models/zone_model.dart';
 import '../providers/audit_providers.dart';
+import '../services/whatsapp_call_service.dart';
 import 'login_screen.dart';
 import 'video_conferencing_screen.dart';
 
@@ -217,16 +218,37 @@ class _InchargePortalScreenState extends ConsumerState<InchargePortalScreen> {
 
           const SizedBox(height: 20),
 
-          // 4. Test Video Call Trigger (Self Test)
+          // 4. Test Video Call Trigger (Self Test) & WhatsApp Quick Connect
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0077B6),
+              backgroundColor: const Color(0xFF25D366),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(vertical: 14),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            icon: const Icon(Icons.video_call, size: 20),
-            label: const Text('JOIN / TEST VIDEO CONFERENCING ROOM'),
+            icon: const Icon(Icons.video_call, size: 22),
+            label: const Text(
+              'TEST WHATSAPP VIDEO CALL WITH INCHARGE',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+            ),
+            onPressed: () {
+              WhatsAppCallService.startWhatsAppInspectionCall(
+                context: context,
+                zone: zone,
+                auditorName: 'Site Incharge (Self-Test)',
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.cyanAccent,
+              side: const BorderSide(color: Colors.cyanAccent, width: 1.2),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            icon: const Icon(Icons.meeting_room, size: 18),
+            label: const Text('OPEN IN-APP VIDEO ROOM'),
             onPressed: () {
               final room = zone.activeRoomUrl ?? 'https://meet.jit.si/dosje_audit_${zone.id.replaceAll('-', '_')}';
               Navigator.push(

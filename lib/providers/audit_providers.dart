@@ -29,6 +29,8 @@ class SentinelDataRepository {
       lastAuditTimestamp: DateTime.now(),
       uncheckedSince: null,
       escalated: false,
+      inchargeName: 'Dr. Ramesh Kumar',
+      inchargePhone: '+919876543210',
     ),
     ZoneModel(
       id: 'zone-102',
@@ -43,6 +45,8 @@ class SentinelDataRepository {
       lastAuditTimestamp: DateTime.now().subtract(const Duration(minutes: 5)),
       uncheckedSince: DateTime.now().subtract(const Duration(minutes: 32)),
       escalated: true,
+      inchargeName: 'Er. Rajesh Varma',
+      inchargePhone: '+919811223344',
     ),
     ZoneModel(
       id: 'zone-103',
@@ -57,6 +61,8 @@ class SentinelDataRepository {
       lastAuditTimestamp: DateTime.now().subtract(const Duration(minutes: 1)),
       uncheckedSince: null,
       escalated: false,
+      inchargeName: 'Ms. Anita Sharma',
+      inchargePhone: '+919899887766',
     ),
     ZoneModel(
       id: 'zone-104',
@@ -71,6 +77,8 @@ class SentinelDataRepository {
       lastAuditTimestamp: DateTime.now(),
       uncheckedSince: null,
       escalated: false,
+      inchargeName: 'Shri Vikram Malhotra',
+      inchargePhone: '+919822334455',
     ),
   ];
 
@@ -120,6 +128,8 @@ class SentinelDataRepository {
           lastAuditTimestamp: updatedZone.lastAuditTimestamp,
           uncheckedSince: prev.uncheckedSince,
           escalated: prev.escalated,
+          inchargeName: prev.inchargeName,
+          inchargePhone: prev.inchargePhone,
         );
         _emit();
       }

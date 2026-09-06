@@ -320,7 +320,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Confidential Internal Audit Terminal v2.4',
+                    'Confidential Internal Audit Terminal v4.2',
                     textAlign: TextAlign.center,
                     style:
                         GoogleFonts.inter(fontSize: 11, color: Colors.white24),
