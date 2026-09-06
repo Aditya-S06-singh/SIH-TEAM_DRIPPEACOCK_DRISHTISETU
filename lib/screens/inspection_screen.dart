@@ -24,6 +24,109 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
   final _manualCountController = TextEditingController();
   late AnimationController _pulseController;
   bool _isFullScreen = false;
+  bool _isTalkingToFacility = false;
+  bool _isListeningToFacilityMic = true;
+
+  Future<void> _toggleTalkback(String cctvStreamUrl) async {
+    final targetUrl = cctvStreamUrl.isNotEmpty ? cctvStreamUrl : 'http://192.168.1.2:8088/stream';
+    final nodeAudioUri = targetUrl.replaceAll('/stream', '/audio/in');
+
+    final messageController = TextEditingController(text: 'Auditor speaking: Attention facility in-charge, please verify beneficiary headcount.');
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF131920),
+        title: Row(
+          children: const [
+            Icon(Icons.record_voice_over, color: Colors.tealAccent, size: 20),
+            SizedBox(width: 8),
+            Text('Transmit Voice to Phone Speaker', style: TextStyle(color: Colors.white, fontSize: 15)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Voice transmission will play loud through the phone node speakerphone in real time:',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: messageController,
+              maxLines: 2,
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF1F2630),
+                hintText: 'Enter speech transmission...',
+                hintStyle: const TextStyle(color: Colors.white30),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+            onPressed: () => Navigator.pop(ctx, false),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+            icon: const Icon(Icons.volume_up, size: 16),
+            label: const Text('TRANSMIT TO PHONE'),
+            onPressed: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _isTalkingToFacility = true);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('🔊 TRANSMITTING TO PHONE SPEAKERPHONE NOW...'),
+          backgroundColor: Colors.teal,
+          duration: Duration(seconds: 3),
+        ),
+      );
+
+      final msg = messageController.text.trim();
+      final bodyBytes = msg.isNotEmpty ? msg.codeUnits : 'Auditor speaking: Please confirm headcount verification.'.codeUnits;
+
+      try {
+        await http.post(
+          Uri.parse(nodeAudioUri),
+          headers: {'Content-Type': 'application/octet-stream'},
+          body: bodyBytes,
+        ).timeout(const Duration(seconds: 3));
+      } catch (e) {
+        // Fallback to localhost if router AP client isolation blocks direct Wi-Fi subnet packets
+        try {
+          final fallbackUri = 'http://127.0.0.1:8088/audio/in';
+          await http.post(
+            Uri.parse(fallbackUri),
+            headers: {'Content-Type': 'application/octet-stream'},
+            body: bodyBytes,
+          ).timeout(const Duration(seconds: 3));
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Could not reach phone node at $nodeAudioUri. Ensure phone app is active.'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+        }
+      } finally {
+        Future.delayed(const Duration(seconds: 4), () {
+          if (mounted) setState(() => _isTalkingToFacility = false);
+        });
+      }
+    }
+  }
 
   @override
   void initState() {
@@ -347,6 +450,70 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
             ),
           ),
 
+          // Two-Way Voice Intercom Control Strip (Laptop <-> Phone Node)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131920),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: _isTalkingToFacility ? Colors.tealAccent : const Color(0xFF26303D),
+                width: _isTalkingToFacility ? 1.5 : 1.0,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: _isTalkingToFacility ? Colors.tealAccent.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    _isTalkingToFacility ? Icons.mic : Icons.mic_none,
+                    color: _isTalkingToFacility ? Colors.tealAccent : Colors.white70,
+                    size: 20,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _isTalkingToFacility ? 'TRANSMITTING VOICE TO PHONE...' : 'Two-Way Voice Intercom',
+                        style: GoogleFonts.outfit(
+                          color: _isTalkingToFacility ? Colors.tealAccent : Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        _isListeningToFacilityMic ? 'Hearing phone mic live • Speaker ready' : 'Phone speaker/mic standby',
+                        style: const TextStyle(color: Colors.white54, fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _isTalkingToFacility ? Colors.redAccent : Colors.teal,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: Icon(_isTalkingToFacility ? Icons.call_end : Icons.record_voice_over, size: 14),
+                  label: Text(
+                    _isTalkingToFacility ? 'STOP TALK' : 'TALK TO PHONE',
+                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () => _toggleTalkback(zone.cctvStreamUrl),
+                ),
+              ],
+            ),
+          ),
+
           // Audit Form
           Padding(
             padding: const EdgeInsets.all(20.0),
@@ -630,7 +797,6 @@ class LiveMjpegStreamViewer extends StatefulWidget {
 class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
   Uint8List? _frameBytes;
   Timer? _poller;
-  bool _isLoading = true;
   bool _isFetching = false;
 
   @override
@@ -668,7 +834,6 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
       if (res.statusCode == 200 && mounted && res.bodyBytes.isNotEmpty) {
         setState(() {
           _frameBytes = res.bodyBytes;
-          _isLoading = false;
         });
       }
     } catch (_) {

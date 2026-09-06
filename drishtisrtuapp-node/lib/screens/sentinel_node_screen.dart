@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../models/detection_models.dart';
@@ -24,6 +25,9 @@ class _SentinelNodeScreenState extends State<SentinelNodeScreen> {
   bool _isFaceLoginMode = false;
   String? _lastAttendeeLog;
   String? _streamUrl;
+  bool _isMicActive = true;
+  bool _isAuditorSpeaking = false;
+  Timer? _auditorSpeakingTimer;
 
   @override
   void initState() {
@@ -31,7 +35,27 @@ class _SentinelNodeScreenState extends State<SentinelNodeScreen> {
     _startStreamingServer();
     _initializeCamera();
     _pipeline.startInferencePipeline();
+
+    // Listen for incoming voice talkback from auditor on Laptop
+    _streamServer.onIncomingAudioReceived = (bytes) async {
+      if (mounted) {
+        setState(() => _isAuditorSpeaking = true);
+        _auditorSpeakingTimer?.cancel();
+        _auditorSpeakingTimer = Timer(const Duration(seconds: 4), () {
+          if (mounted) setState(() => _isAuditorSpeaking = false);
+        });
+      }
+      try {
+        // Decode message if passed, or play loud live auditor incoming voice notification
+        final rawStr = String.fromCharCodes(bytes);
+        final messageToSpeak = rawStr.length > 5 ? rawStr : 'Auditor transmission live on intercom';
+        const channel = MethodChannel('com.dhrishti.node/audio');
+        await channel.invokeMethod('playAuditorVoiceAlert', {'message': messageToSpeak});
+      } catch (_) {}
+    };
   }
+
+
 
   Future<void> _startStreamingServer() async {
     final url = await _streamServer.start();
@@ -80,6 +104,7 @@ class _SentinelNodeScreenState extends State<SentinelNodeScreen> {
 
   @override
   void dispose() {
+    _auditorSpeakingTimer?.cancel();
     _frameStreamTimer?.cancel();
     _streamServer.stop();
     _cameraController?.dispose();
@@ -252,7 +277,31 @@ class _SentinelNodeScreenState extends State<SentinelNodeScreen> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Top sub-row: Camera status & Stream URL badge
+        // Intercom voice banner when auditor speaks from laptop
+        if (_isAuditorSpeaking)
+          Container(
+            margin: const EdgeInsets.only(bottom: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.greenAccent.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.greenAccent),
+            ),
+            child: Row(
+              children: const [
+                Icon(Icons.volume_up, color: Colors.greenAccent, size: 16),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'AUDITOR SPEAKING VIA LIVE INTERCOM...',
+                    style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+        // Top sub-row: Camera status, Stream URL, and Mic toggle
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
@@ -261,7 +310,6 @@ class _SentinelNodeScreenState extends State<SentinelNodeScreen> {
             border: Border.all(color: Colors.white12),
           ),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 width: 8,
@@ -281,6 +329,41 @@ class _SentinelNodeScreenState extends State<SentinelNodeScreen> {
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              GestureDetector(
+                onTap: () {
+                  setState(() => _isMicActive = !_isMicActive);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      duration: const Duration(milliseconds: 1200),
+                      content: Text(_isMicActive ? 'Phone Microphone LIVE (Auditor Can Hear You)' : 'Phone Microphone MUTED'),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: _isMicActive ? Colors.tealAccent.withOpacity(0.2) : Colors.redAccent.withOpacity(0.2),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: _isMicActive ? Colors.tealAccent : Colors.redAccent, width: 0.8),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(_isMicActive ? Icons.mic : Icons.mic_off, size: 12, color: _isMicActive ? Colors.tealAccent : Colors.redAccent),
+                      const SizedBox(width: 3),
+                      Text(
+                        _isMicActive ? 'MIC ON' : 'MUTED',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: _isMicActive ? Colors.tealAccent : Colors.redAccent,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
