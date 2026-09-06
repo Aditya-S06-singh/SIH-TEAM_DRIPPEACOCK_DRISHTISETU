@@ -141,10 +141,10 @@ class _VideoConferencingScreenState extends State<VideoConferencingScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              targetPhone,
+                              'Encrypted Gov Directory • Protected ID',
                               style: GoogleFonts.robotoMono(
                                 color: const Color(0xFF25D366),
-                                fontSize: 13,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),

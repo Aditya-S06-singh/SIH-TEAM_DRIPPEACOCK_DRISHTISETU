@@ -142,29 +142,17 @@ class SentinelDataRepository {
   SentinelDataRepository() {
     // Initial emit
     _emit();
-    // Start live sync with Appwrite
-    _appwritePoller.zoneStream.listen((updatedZone) {
-      final idx = _zones.indexWhere((z) => z.id == updatedZone.id || z.id == 'zone-101');
-      if (idx != -1) {
-        final prev = _zones[idx];
-        _zones[idx] = ZoneModel(
-          id: prev.id,
-          name: prev.name,
-          floor: prev.floor,
-          cctvStreamUrl: prev.cctvStreamUrl.isNotEmpty ? prev.cctvStreamUrl : updatedZone.cctvStreamUrl,
-          isCameraOnline: updatedZone.isCameraOnline,
-          expectedCount: updatedZone.expectedCount,
-          detectedCount: updatedZone.detectedCount,
-          discrepancy: updatedZone.discrepancy,
-          severity: updatedZone.severity,
-          lastAuditTimestamp: updatedZone.lastAuditTimestamp,
-          uncheckedSince: prev.uncheckedSince,
-          escalated: prev.escalated,
-          inchargeName: prev.inchargeName,
-          inchargePhone: prev.inchargePhone,
-        );
-        _emit();
+    // Start live sync with Appwrite database (all zones)
+    _appwritePoller.zonesStream.listen((updatedZones) {
+      for (final updatedZone in updatedZones) {
+        final idx = _zones.indexWhere((z) => z.id == updatedZone.id);
+        if (idx != -1) {
+          _zones[idx] = updatedZone;
+        } else {
+          _zones.add(updatedZone);
+        }
       }
+      _emit();
     });
     _appwritePoller.startPolling();
   }

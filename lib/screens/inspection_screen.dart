@@ -555,7 +555,7 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                             ),
                           ),
                           Text(
-                            'Site Incharge: ${zone.inchargeName ?? "Dr. Ramesh Kumar"} (${zone.inchargePhone ?? "+919876543210"})',
+                            'Facility Incharge: ${zone.inchargeName ?? "Dr. Ramesh Kumar"} • Secure WhatsApp Call Ready',
                             style: const TextStyle(color: Colors.white54, fontSize: 10),
                           ),
                         ],

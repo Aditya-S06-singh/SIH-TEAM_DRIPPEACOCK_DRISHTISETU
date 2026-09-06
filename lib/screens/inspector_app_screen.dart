@@ -144,7 +144,7 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Incharge: ${zone.inchargeName ?? "Dr. Ramesh Kumar"} (${zone.inchargePhone ?? "+919876543210"})',
+                        'Incharge: ${zone.inchargeName ?? "Dr. Ramesh Kumar"} • Encrypted Directory Contact',
                         style: const TextStyle(color: Colors.white60, fontSize: 11),
                       ),
                     ],

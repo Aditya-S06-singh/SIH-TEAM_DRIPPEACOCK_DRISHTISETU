@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 
 import '../providers/audit_providers.dart';
 import 'dashboard_screen.dart';
-import 'incharge_portal_screen.dart';
 import 'inspector_app_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -21,8 +20,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordController = TextEditingController(text: 'Official#2026');
   bool _isLoading = false;
   bool _obscurePassword = true;
-  String _activeRole = 'official'; // 'official' | 'inspector' | 'incharge'
-  String _selectedFacilityId = 'zone-101';
+  String _activeRole = 'official'; // 'official' | 'inspector'
 
   @override
   void dispose() {
@@ -37,12 +35,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       if (role == 'official') {
         _emailController.text = 'official.lead@dosje.gov.in';
         _passwordController.text = 'Official#2026';
-      } else if (role == 'inspector') {
+      } else {
         _emailController.text = 'inspector.pmu04@dosje.gov.in';
         _passwordController.text = 'Inspector#2026';
-      } else {
-        _emailController.text = 'incharge.delhi@dosje-rehab.org';
-        _passwordController.text = 'Incharge#2026';
       }
     });
   }
@@ -64,7 +59,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             label,
             style: TextStyle(
               color: isSelected ? Colors.white : Colors.white60,
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: FontWeight.bold,
             ),
           ),
@@ -91,18 +86,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const DashboardScreen()),
         );
-      } else if (_activeRole == 'inspector') {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const InspectorAppScreen()),
-        );
       } else {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (_) => InchargePortalScreen(
-              assignedZoneId: _selectedFacilityId,
-              inchargeName: 'Dr. Ramesh Kumar (Project Incharge)',
-            ),
-          ),
+          MaterialPageRoute(builder: (_) => const InspectorAppScreen()),
         );
       }
     }
@@ -166,7 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 3-Way Segmented Role Switcher
+                  // 2-Way Segmented Role Switcher
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
@@ -177,50 +163,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     child: Row(
                       children: [
                         _buildRoleTab('official', '🏛️ DoSJE Official', const Color(0xFF00B4D8)),
-                        _buildRoleTab('inspector', '📱 Inspector', Colors.purpleAccent),
-                        _buildRoleTab('incharge', '🏢 Incharge', Colors.teal),
+                        _buildRoleTab('inspector', '📱 Field Inspector', Colors.purpleAccent),
                       ],
                     ),
                   ),
                   const SizedBox(height: 20),
-
-                  if (_activeRole == 'incharge') ...[
-                    // Facility Selector for Incharge
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF131920),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF26303D)),
-                      ),
-                      child: DropdownButtonHideUnderline(
-                        child: DropdownButton<String>(
-                          value: _selectedFacilityId,
-                          isExpanded: true,
-                          dropdownColor: const Color(0xFF131920),
-                          icon: const Icon(Icons.arrow_drop_down, color: Colors.tealAccent),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'zone-101',
-                              child: Text('Central Assembly Hall (Floor 1)', style: TextStyle(color: Colors.white, fontSize: 13)),
-                            ),
-                            DropdownMenuItem(
-                              value: 'zone-102',
-                              child: Text('Robotics Workshop Block B (Basement 1)', style: TextStyle(color: Colors.white, fontSize: 13)),
-                            ),
-                            DropdownMenuItem(
-                              value: 'zone-103',
-                              child: Text('Server Room & Telecom Hub (Floor 3)', style: TextStyle(color: Colors.white, fontSize: 13)),
-                            ),
-                          ],
-                          onChanged: (val) {
-                            if (val != null) setState(() => _selectedFacilityId = val);
-                          },
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                  ],
 
                   TextFormField(
                     controller: _emailController,
@@ -229,21 +176,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     decoration: InputDecoration(
                       labelText: _activeRole == 'official'
                           ? 'DoSJE Official Email'
-                          : _activeRole == 'inspector'
-                              ? 'Inspector Service ID / Email'
-                              : 'Site Incharge ID',
+                          : 'Inspector Service ID / Email',
                       labelStyle: const TextStyle(color: Colors.white60),
                       prefixIcon: Icon(
                         _activeRole == 'official'
                             ? Icons.badge_outlined
-                            : _activeRole == 'inspector'
-                                ? Icons.verified_user_outlined
-                                : Icons.business_center_outlined,
+                            : Icons.verified_user_outlined,
                         color: _activeRole == 'official'
                             ? Colors.cyanAccent
-                            : _activeRole == 'inspector'
-                                ? Colors.purpleAccent
-                                : Colors.tealAccent,
+                            : Colors.purpleAccent,
                       ),
                       filled: true,
                       fillColor: const Color(0xFF131920),
@@ -256,9 +197,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         borderSide: BorderSide(
                           color: _activeRole == 'official'
                               ? Colors.cyanAccent
-                              : _activeRole == 'inspector'
-                                  ? Colors.purpleAccent
-                                  : Colors.tealAccent,
+                              : Colors.purpleAccent,
                         ),
                       ),
                     ),
@@ -332,7 +271,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Confidential Internal Audit Terminal v5.0',
+                    'Confidential Internal Audit Terminal v5.1',
                     textAlign: TextAlign.center,
                     style:
                         GoogleFonts.inter(fontSize: 11, color: Colors.white24),
