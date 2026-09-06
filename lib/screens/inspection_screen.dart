@@ -28,33 +28,154 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
   bool _isListeningToFacilityMic = true;
 
   Future<void> _toggleTalkback(String cctvStreamUrl) async {
-    setState(() => _isTalkingToFacility = !_isTalkingToFacility);
-    if (_isTalkingToFacility) {
+    final targetUrl = cctvStreamUrl.isNotEmpty ? cctvStreamUrl : 'http://192.168.1.2:8088/stream';
+    final nodeAudioUri = targetUrl.replaceAll('/stream', '/audio/in');
+
+    final messageController = TextEditingController(text: 'Auditor speaking: Attention facility in-charge, please verify beneficiary headcount.');
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF131920),
+        title: Row(
+          children: const [
+            Icon(Icons.record_voice_over, color: Colors.tealAccent, size: 20),
+            SizedBox(width: 8),
+            Text('Transmit Voice to Phone Speaker', style: TextStyle(color: Colors.white, fontSize: 15)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Voice transmission will play loud through the phone node speakerphone in real time:',
+              style: TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: messageController,
+              maxLines: 2,
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: const Color(0xFF1F2630),
+                hintText: 'Enter speech transmission...',
+                hintStyle: const TextStyle(color: Colors.white30),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+            onPressed: () => Navigator.pop(ctx, false),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+            icon: const Icon(Icons.volume_up, size: 16),
+            label: const Text('TRANSMIT TO PHONE'),
+            onPressed: () => Navigator.pop(ctx, true),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      setState(() => _isTalkingToFacility = true);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('🎙 LAPTOP MIC ACTIVE: Facility in-charge can hear you over phone speaker!'),
+          content: Text('🔊 TRANSMITTING TO PHONE SPEAKERPHONE NOW...'),
           backgroundColor: Colors.teal,
-          duration: Duration(seconds: 2),
+          duration: Duration(seconds: 3),
         ),
       );
-      // Send talkback packet to phone companion node
-      if (cctvStreamUrl.startsWith('http')) {
-        final nodeAudioUri = cctvStreamUrl.replaceAll('/stream', '/audio/in');
+
+      final msg = messageController.text.trim();
+      final bodyBytes = msg.isNotEmpty ? msg.codeUnits : 'Auditor speaking: Please confirm headcount verification.'.codeUnits;
+
+      try {
+        await http.post(
+          Uri.parse(nodeAudioUri),
+          headers: {'Content-Type': 'application/octet-stream'},
+          body: bodyBytes,
+        ).timeout(const Duration(seconds: 3));
+      } catch (e) {
+        // Fallback to localhost if router AP client isolation blocks direct Wi-Fi subnet packets
         try {
+          final fallbackUri = 'http://127.0.0.1:8088/audio/in';
           await http.post(
-            Uri.parse(nodeAudioUri),
+            Uri.parse(fallbackUri),
             headers: {'Content-Type': 'application/octet-stream'},
-            body: [1, 2, 3, 4],
-          );
-        } catch (_) {}
+            body: bodyBytes,
+          ).timeout(const Duration(seconds: 3));
+        } catch (_) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Could not reach phone node at $nodeAudioUri. Ensure phone app is active.'),
+                backgroundColor: Colors.redAccent,
+              ),
+            );
+          }
+        }
+      } finally {
+        Future.delayed(const Duration(seconds: 4), () {
+          if (mounted) setState(() => _isTalkingToFacility = false);
+        });
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Laptop Microphone Muted.'),
-          duration: Duration(milliseconds: 1200),
-        ),
-      );
+    }
+  }
+
+  bool _isLiveWalkieTalkieActive = false;
+
+  Future<void> _toggleLiveWalkieTalkie() async {
+    final newState = !_isLiveWalkieTalkieActive;
+    final path = newState ? '/mic/start' : '/mic/stop';
+    bool success = false;
+
+    for (final host in ['http://10.0.2.2:8092', 'http://127.0.0.1:8092', 'http://192.168.1.4:8092']) {
+      try {
+        final res = await http.post(Uri.parse('$host$path')).timeout(const Duration(milliseconds: 700));
+        if (res.statusCode == 200) {
+          success = true;
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      if (success) {
+        setState(() => _isLiveWalkieTalkieActive = newState);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: newState ? Colors.redAccent : Colors.teal,
+            duration: const Duration(seconds: 3),
+            content: Row(
+              children: [
+                Icon(newState ? Icons.mic : Icons.mic_off, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    newState
+                        ? '🎙 LIVE WALKIE-TALKIE TRANSMITTING: Speaking into laptop mic!'
+                        : 'Walkie-Talkie stopped. Phone speaker standby.',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.orangeAccent,
+            content: Text('Could not reach laptop mic bridge at port 8092. Checking service...'),
+          ),
+        );
+      }
     }
   }
 
@@ -428,15 +549,30 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                 ),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: _isLiveWalkieTalkieActive ? Colors.redAccent : const Color(0xFF00B4D8),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: Icon(_isLiveWalkieTalkieActive ? Icons.mic : Icons.podcasts, size: 14),
+                  label: Text(
+                    _isLiveWalkieTalkieActive ? 'LIVE MIC ON' : 'WALKIE-TALKIE',
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: _toggleLiveWalkieTalkie,
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
                     backgroundColor: _isTalkingToFacility ? Colors.redAccent : Colors.teal,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   icon: Icon(_isTalkingToFacility ? Icons.call_end : Icons.record_voice_over, size: 14),
                   label: Text(
-                    _isTalkingToFacility ? 'STOP TALK' : 'TALK TO PHONE',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    _isTalkingToFacility ? 'STOP' : 'MESSAGE',
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                   onPressed: () => _toggleTalkback(zone.cctvStreamUrl),
                 ),
@@ -728,6 +864,7 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
   Uint8List? _frameBytes;
   Timer? _poller;
   bool _isFetching = false;
+  final http.Client _httpClient = http.Client();
 
   @override
   void initState() {
@@ -750,8 +887,8 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
     // Fetch initial frame immediately
     _fetchSnapshot(snapshotUrl);
 
-    // Continuous smooth frame polling at stable ~25 FPS with in-flight guard
-    _poller = Timer.periodic(const Duration(milliseconds: 40), (_) {
+    // Highly optimized ~5-6 FPS polling interval (180ms) with in-flight guard to keep Flutter UI at smooth 60 FPS
+    _poller = Timer.periodic(const Duration(milliseconds: 180), (_) {
       _fetchSnapshot(snapshotUrl);
     });
   }
@@ -760,10 +897,21 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
     if (_isFetching) return;
     _isFetching = true;
     try {
-      final res = await http.get(Uri.parse(url)).timeout(const Duration(milliseconds: 300));
-      if (res.statusCode == 200 && mounted && res.bodyBytes.isNotEmpty) {
+      var targetUri = Uri.parse(url);
+      http.Response? res;
+      try {
+        res = await _httpClient.get(targetUri).timeout(const Duration(milliseconds: 350));
+      } catch (_) {
+        // If 127.0.0.1 is unreachable inside the Android emulator, automatically try the 10.0.2.2 gateway
+        if (url.contains('127.0.0.1')) {
+          final emulatorGatewayUrl = url.replaceAll('127.0.0.1', '10.0.2.2');
+          res = await _httpClient.get(Uri.parse(emulatorGatewayUrl)).timeout(const Duration(milliseconds: 350));
+        }
+      }
+      final response = res;
+      if (response != null && response.statusCode == 200 && mounted && response.bodyBytes.isNotEmpty) {
         setState(() {
-          _frameBytes = res.bodyBytes;
+          _frameBytes = response.bodyBytes;
         });
       }
     } catch (_) {
@@ -775,6 +923,7 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
   @override
   void dispose() {
     _poller?.cancel();
+    _httpClient.close();
     super.dispose();
   }
 
@@ -785,6 +934,8 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
         _frameBytes!,
         fit: BoxFit.cover,
         gaplessPlayback: true,
+        cacheWidth: 720,
+        filterQuality: FilterQuality.low,
       );
     }
     return Center(

@@ -8,7 +8,7 @@ import os
 import urllib.request
 import json
 import threading
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
 
 CSV_FILE = "people_count.csv"
@@ -50,7 +50,9 @@ class AnnotatedStreamHandler(BaseHTTPRequestHandler):
                 self.wfile.write(frame_bytes)
             else:
                 self.send_response(503)
+                self.send_header('Access-Control-Allow-Origin', '*')
                 self.end_headers()
+                self.wfile.write(b"No frame yet")
         else:
             self.send_response(404)
             self.end_headers()
@@ -60,7 +62,7 @@ class AnnotatedStreamHandler(BaseHTTPRequestHandler):
 
 def run_annotated_stream_server(port=8089):
     try:
-        server = HTTPServer(('0.0.0.0', port), AnnotatedStreamHandler)
+        server = ThreadingHTTPServer(('0.0.0.0', port), AnnotatedStreamHandler)
         print(f"[YOLO Stream Server] Serving annotated live feed on http://0.0.0.0:{port}/stream")
         server.serve_forever()
     except Exception as e:
@@ -95,7 +97,6 @@ gate_expected_count = 23  # Synced gate turnstile baseline
 def sync_to_appwrite(headcount):
     global last_appwrite_sync
     curr = time.time()
-    # Sync every 2 seconds
     if curr - last_appwrite_sync < 2.0:
         return
     last_appwrite_sync = curr
@@ -130,14 +131,6 @@ def sync_to_appwrite(headcount):
     except Exception:
         pass
 
-def RGB(event, x, y, flags, param):
-    if event == cv2.EVENT_MOUSEMOVE:
-        point = [x, y]
-        # print(point)
-
-cv2.namedWindow('DrishtiSetu YOLO11n Camera Feed')
-cv2.setMouseCallback('DrishtiSetu YOLO11n Camera Feed', RGB)
-
 # Using yolo11n for fast inference
 print("Loading YOLO11n model...")
 model = YOLO("yolo11n.pt")
@@ -146,59 +139,34 @@ names = model.names
 import sys
 
 # Support wireless phone camera stream URL via command-line argument or environment variable:
-# e.g.: python yolo_camera_counter.py http://192.168.43.1:8088/stream
-source = "0"
+source = "http://127.0.0.1:8088/snapshot"
 if len(sys.argv) > 1 and sys.argv[1].strip():
-    source = sys.argv[1].strip()
-elif os.environ.get("PHONE_STREAM_URL"):
-    source = os.environ.get("PHONE_STREAM_URL").strip()
-
-if source.isdigit():
-    source = int(source)
-    print(f"Connecting to local Camera Source ({source})...")
-    cap = cv2.VideoCapture(source, cv2.CAP_DSHOW)
-    if not cap.isOpened():
-        cap = cv2.VideoCapture(source)
-else:
-    print(f"Connecting to Wireless Phone Camera: {source} ...")
-    cap = cv2.VideoCapture(source)
-
-if not cap.isOpened():
-    print(f"Could not connect to {source}. Falling back to default webcam (0)...")
-    cap = cv2.VideoCapture(0)
+    raw_arg = sys.argv[1].strip()
+    source = raw_arg.replace('/stream', '/snapshot') if raw_arg.startswith('http') else raw_arg
 
 SAVE_INTERVAL = 600
 last_save_time = time.time()
-
-# FPS and performance settings
-SKIP_FRAMES = 2       # Run YOLO every 3rd frame (massive FPS boost)
 frame_idx = 0
 prev_time = time.time()
 fps = 0
-cached_boxes = []     # Store detections between skipped frames
 people_count = 0
 
-is_http_source = str(source).startswith("http")
-snapshot_url = str(source).replace("/stream", "/snapshot") if is_http_source else None
-
-print("Camera feed active. Press 'q' in the camera window to exit.")
+print(f"[YOLO Engine Active] Fetching frames directly from: {source}")
 
 while True:
     frame = None
-    if is_http_source:
-        try:
-            req = urllib.request.Request(snapshot_url, headers={'User-Agent': 'Mozilla/5.0'})
-            with urllib.request.urlopen(req, timeout=1.0) as resp:
-                img_array = np.asarray(bytearray(resp.read()), dtype=np.uint8)
+    try:
+        req = urllib.request.Request(source, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=1.5) as resp:
+            raw_data = resp.read()
+            if raw_data:
+                img_array = np.asarray(bytearray(raw_data), dtype=np.uint8)
                 frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-        except Exception:
-            pass
-
-    if frame is None and cap is not None:
-        ret, frame = cap.read()
+    except Exception:
+        pass
 
     if frame is None:
-        time.sleep(0.05)
+        time.sleep(0.15)
         continue
 
     frame_idx += 1
@@ -206,21 +174,21 @@ while True:
     # Resize input frame to standard (1020, 600)
     frame = cv2.resize(frame, (1020, 600))
 
-    # Track only persons (COCO class 0)
-    results = model.track(frame, persist=True, classes=[0], verbose=False)
+    # Accurate & resilient Person Detection (COCO class 0)
+    people_count = 0
+    try:
+        results = model.predict(frame, classes=[0], verbose=False, conf=0.35)
+        if results and len(results) > 0 and results[0].boxes is not None and len(results[0].boxes) > 0:
+            boxes = results[0].boxes.xyxy.int().cpu().tolist()
+            confs = results[0].boxes.conf.cpu().tolist() if results[0].boxes.conf is not None else [0.0]*len(boxes)
+            people_count = len(boxes)
 
-    # Check if there are tracked boxes
-    if results[0].boxes is not None and len(results[0].boxes) > 0:
-        boxes = results[0].boxes.xyxy.int().cpu().tolist()
-        track_ids = results[0].boxes.id.int().cpu().tolist() if results[0].boxes.id is not None else list(range(1, len(boxes)+1))
-        people_count = len(boxes)
-
-        for box, track_id in zip(boxes, track_ids):
-            x1, y1, x2, y2 = box
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-            cvzone.putTextRect(frame, f'ID: {track_id}', (x1, max(30, y1)), 1, 1)
-    else:
-        people_count = 0
+            for idx, (box, conf) in enumerate(zip(boxes, confs), 1):
+                x1, y1, x2, y2 = box
+                cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 210, 255), 2)
+                cvzone.putTextRect(frame, f'Person #{idx} ({int(conf*100)}%)', (x1, max(30, y1)), scale=0.9, thickness=1, colorR=(20, 20, 20))
+    except Exception as e:
+        print(f'[YOLO Error] {e}')
 
     sync_to_appwrite(people_count)
 
@@ -228,6 +196,9 @@ while True:
     curr_time = time.time()
     fps = int(1.0 / max(0.001, (curr_time - prev_time)))
     prev_time = curr_time
+
+    if frame_idx % 15 == 0:
+        print(f"[YOLO Live] Headcount: {people_count} | FPS: {fps} | Synced to Appwrite & Stream :8089")
 
     # Periodic 10-minute CSV logging
     elapsed = curr_time - last_save_time
@@ -247,10 +218,4 @@ while True:
         with frame_lock:
             latest_annotated_jpeg = buffer.tobytes()
 
-    cv2.imshow("DrishtiSetu YOLO11n Camera Feed", frame)
-
-    if cv2.waitKey(1) & 0xFF == ord("q"):
-        break
-
-cap.release()
-cv2.destroyAllWindows()
+    time.sleep(0.03)
