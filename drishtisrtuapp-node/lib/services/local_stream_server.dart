@@ -13,26 +13,50 @@ class LocalStreamServer {
       _server = await HttpServer.bind(InternetAddress.anyIPv4, port);
       _listenRequests();
 
-      // Find local Wi-Fi IP address
+      // Explicitly prioritize Wi-Fi network interface (wlan, wifi, en) and exclude cellular interfaces (ccmni, rmnet, pdp, ppp)
       final interfaces = await NetworkInterface.list(type: InternetAddressType.IPv4);
-      String localIp = '127.0.0.1';
+      String? wifiIp;
+      String? lanFallbackIp;
+
       for (final interface in interfaces) {
+        final name = interface.name.toLowerCase();
+        final isCellular = name.contains('ccmni') ||
+            name.contains('rmnet') ||
+            name.contains('pdp') ||
+            name.contains('ppp') ||
+            name.contains('cellular') ||
+            name.contains('radio');
+
+        if (isCellular) continue;
+
         for (final addr in interface.addresses) {
-          if (!addr.isLoopback) {
-            localIp = addr.address;
+          if (addr.isLoopback) continue;
+
+          final isWifiName = name.contains('wlan') || name.contains('wifi') || name.contains('en');
+          final isPrivateLan = addr.address.startsWith('192.168.') ||
+              addr.address.startsWith('10.') ||
+              addr.address.startsWith('172.');
+
+          if (isWifiName || isPrivateLan) {
+            wifiIp = addr.address;
             break;
+          } else if (lanFallbackIp == null) {
+            lanFallbackIp = addr.address;
           }
         }
+        if (wifiIp != null) break;
       }
-      return 'http://$localIp:$port/stream';
+
+      final chosenIp = wifiIp ?? lanFallbackIp ?? '127.0.0.1';
+      return 'http://' + chosenIp + ':' + port.toString() + '/stream';
     } catch (_) {
-      return 'http://127.0.0.1:$port/stream';
+      return 'http://127.0.0.1:' + port.toString() + '/stream';
     }
   }
 
   void updateFrame(Uint8List jpegBytes) {
     _latestFrame = jpegBytes;
-    final boundary = '--boundary\r\nContent-Type: image/jpeg\r\nContent-Length: ${jpegBytes.length}\r\n\r\n';
+    final boundary = '--boundary\r\nContent-Type: image/jpeg\r\nContent-Length: ' + jpegBytes.length.toString() + '\r\n\r\n';
 
     final deadClients = <HttpResponse>[];
     for (final client in _activeClients) {

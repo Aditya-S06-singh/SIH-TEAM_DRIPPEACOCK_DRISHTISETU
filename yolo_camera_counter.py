@@ -210,9 +210,9 @@ while True:
     results = model.track(frame, persist=True, classes=[0], verbose=False)
 
     # Check if there are tracked boxes
-    if results[0].boxes is not None and results[0].boxes.id is not None:
+    if results[0].boxes is not None and len(results[0].boxes) > 0:
         boxes = results[0].boxes.xyxy.int().cpu().tolist()
-        track_ids = results[0].boxes.id.int().cpu().tolist()
+        track_ids = results[0].boxes.id.int().cpu().tolist() if results[0].boxes.id is not None else list(range(1, len(boxes)+1))
         people_count = len(boxes)
 
         for box, track_id in zip(boxes, track_ids):
