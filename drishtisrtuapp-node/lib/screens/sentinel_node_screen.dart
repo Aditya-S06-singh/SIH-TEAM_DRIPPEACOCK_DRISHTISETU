@@ -36,6 +36,21 @@ class _SentinelNodeScreenState extends State<SentinelNodeScreen> {
     _initializeCamera();
     _pipeline.startInferencePipeline();
 
+    // Listen for continuous live raw microphone voice stream from Laptop
+    _streamServer.onIncomingRawPcmChunk = (pcmChunk) async {
+      if (mounted && !_isAuditorSpeaking) {
+        setState(() => _isAuditorSpeaking = true);
+      }
+      _auditorSpeakingTimer?.cancel();
+      _auditorSpeakingTimer = Timer(const Duration(seconds: 2), () {
+        if (mounted) setState(() => _isAuditorSpeaking = false);
+      });
+      try {
+        const channel = MethodChannel('com.dhrishti.node/audio');
+        await channel.invokeMethod('writeLiveAudioChunk', {'data': pcmChunk});
+      } catch (_) {}
+    };
+
     // Listen for incoming voice talkback from auditor on Laptop
     _streamServer.onIncomingAudioReceived = (bytes) async {
       if (mounted) {

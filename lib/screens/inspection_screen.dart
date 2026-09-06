@@ -128,6 +128,57 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
     }
   }
 
+  bool _isLiveWalkieTalkieActive = false;
+
+  Future<void> _toggleLiveWalkieTalkie() async {
+    final newState = !_isLiveWalkieTalkieActive;
+    final path = newState ? '/mic/start' : '/mic/stop';
+    bool success = false;
+
+    for (final host in ['http://10.0.2.2:8092', 'http://127.0.0.1:8092', 'http://192.168.1.4:8092']) {
+      try {
+        final res = await http.post(Uri.parse('$host$path')).timeout(const Duration(milliseconds: 700));
+        if (res.statusCode == 200) {
+          success = true;
+          break;
+        }
+      } catch (_) {}
+    }
+
+    if (mounted) {
+      if (success) {
+        setState(() => _isLiveWalkieTalkieActive = newState);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: newState ? Colors.redAccent : Colors.teal,
+            duration: const Duration(seconds: 3),
+            content: Row(
+              children: [
+                Icon(newState ? Icons.mic : Icons.mic_off, color: Colors.white),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    newState
+                        ? '🎙 LIVE WALKIE-TALKIE TRANSMITTING: Speaking into laptop mic!'
+                        : 'Walkie-Talkie stopped. Phone speaker standby.',
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            backgroundColor: Colors.orangeAccent,
+            content: Text('Could not reach laptop mic bridge at port 8092. Checking service...'),
+          ),
+        );
+      }
+    }
+  }
+
   @override
   void initState() {
     super.initState();
@@ -498,15 +549,30 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                 ),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: _isLiveWalkieTalkieActive ? Colors.redAccent : const Color(0xFF00B4D8),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  icon: Icon(_isLiveWalkieTalkieActive ? Icons.mic : Icons.podcasts, size: 14),
+                  label: Text(
+                    _isLiveWalkieTalkieActive ? 'LIVE MIC ON' : 'WALKIE-TALKIE',
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: _toggleLiveWalkieTalkie,
+                ),
+                const SizedBox(width: 8),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
                     backgroundColor: _isTalkingToFacility ? Colors.redAccent : Colors.teal,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   icon: Icon(_isTalkingToFacility ? Icons.call_end : Icons.record_voice_over, size: 14),
                   label: Text(
-                    _isTalkingToFacility ? 'STOP TALK' : 'TALK TO PHONE',
-                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                    _isTalkingToFacility ? 'STOP' : 'MESSAGE',
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                   onPressed: () => _toggleTalkback(zone.cctvStreamUrl),
                 ),

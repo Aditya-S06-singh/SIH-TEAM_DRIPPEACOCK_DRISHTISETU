@@ -17,6 +17,10 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
     private var tts: TextToSpeech? = null
     private var isTtsReady = false
 
+    // Real-time PCM streaming AudioTrack for Live Mic Walkie-Talkie
+    private var liveAudioTrack: AudioTrack? = null
+    private val SAMPLE_RATE = 16000
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
@@ -35,6 +39,23 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
                     speakAuditorVoice(text)
                     result.success(true)
                 }
+                "startLiveAudioStream" -> {
+                    initLiveAudioTrack()
+                    result.success(true)
+                }
+                "writeLiveAudioChunk" -> {
+                    val pcmBytes = call.argument<ByteArray>("data")
+                    if (pcmBytes != null && pcmBytes.isNotEmpty()) {
+                        writeLiveChunk(pcmBytes)
+                        result.success(true)
+                    } else {
+                        result.success(false)
+                    }
+                }
+                "stopLiveAudioStream" -> {
+                    stopLiveAudioTrack()
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         }
@@ -47,15 +68,67 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
         }
     }
 
-    private fun speakAuditorVoice(message: String) {
-        // Boost audio to speakerphone
+    private fun setSpeakerphoneBoost() {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
         audioManager.mode = AudioManager.MODE_IN_COMMUNICATION
         audioManager.isSpeakerphoneOn = true
+    }
 
+    private fun speakAuditorVoice(message: String) {
+        setSpeakerphoneBoost()
         if (isTtsReady && tts != null) {
             tts?.speak(message, TextToSpeech.QUEUE_FLUSH, null, "AuditorTalkback")
         }
+    }
+
+    @Synchronized
+    private fun initLiveAudioTrack() {
+        setSpeakerphoneBoost()
+        if (liveAudioTrack == null) {
+            val minBufferSize = AudioTrack.getMinBufferSize(
+                SAMPLE_RATE,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+            val bufferSize = Math.max(minBufferSize, 4096)
+
+            liveAudioTrack = AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                        .build()
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(SAMPLE_RATE)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                        .build()
+                )
+                .setBufferSizeInBytes(bufferSize)
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .build()
+
+            liveAudioTrack?.play()
+        }
+    }
+
+    @Synchronized
+    private fun writeLiveChunk(pcmBytes: ByteArray) {
+        if (liveAudioTrack == null) {
+            initLiveAudioTrack()
+        }
+        liveAudioTrack?.write(pcmBytes, 0, pcmBytes.size)
+    }
+
+    @Synchronized
+    private fun stopLiveAudioTrack() {
+        try {
+            liveAudioTrack?.stop()
+            liveAudioTrack?.release()
+        } catch (_: Exception) {}
+        liveAudioTrack = null
     }
 
     private fun playChimeTone() {
@@ -104,6 +177,7 @@ class MainActivity : FlutterActivity(), TextToSpeech.OnInitListener {
     }
 
     override fun onDestroy() {
+        stopLiveAudioTrack()
         tts?.stop()
         tts?.shutdown()
         super.onDestroy()

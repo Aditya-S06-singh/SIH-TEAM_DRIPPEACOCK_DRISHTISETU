@@ -56,6 +56,7 @@ class LocalStreamServer {
 
   final List<HttpResponse> _activeAudioClients = [];
   void Function(List<int> bytes)? onIncomingAudioReceived;
+  void Function(Uint8List pcmBytes)? onIncomingRawPcmChunk;
   final StreamController<List<int>> _micAudioController = StreamController<List<int>>.broadcast();
 
   Stream<List<int>> get micAudioStream => _micAudioController.stream;
@@ -133,6 +134,17 @@ class LocalStreamServer {
         response.headers.set('Connection', 'close');
         response.headers.set('Access-Control-Allow-Origin', '*');
         _activeAudioClients.add(response);
+      } else if (path == '/audio/raw' && method == 'POST') {
+        // Continuous raw PCM voice stream directly to phone loudspeaker
+        await for (final chunk in request) {
+          if (chunk.isNotEmpty && onIncomingRawPcmChunk != null) {
+            onIncomingRawPcmChunk!(Uint8List.fromList(chunk));
+          }
+        }
+        request.response.headers.set('Access-Control-Allow-Origin', '*');
+        request.response.statusCode = HttpStatus.ok;
+        request.response.write('OK');
+        await request.response.close();
       } else if (path == '/audio/in' && method == 'POST') {
         // Laptop talkback audio input received -> trigger phone speaker
         final bodyBytes = <int>[];
