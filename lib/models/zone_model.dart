@@ -16,6 +16,15 @@ class ZoneModel {
   final String? activeRoomUrl;
   final String? inchargePhone;
   final String? inchargeName;
+  final List<int> pastThreeDaysDetected; // e.g. [63, 59, 61]
+  final int persistentAnomalyDays; // e.g. 3
+  final double cameraUptimePercent; // e.g. 96.7%
+  final int totalDowntimeMinutes; // e.g. 19
+  final String lastOutageWindow; // e.g. "Today 10:32 AM - 10:51 AM"
+  final double targetLatitude; // e.g. 28.6692
+  final double targetLongitude; // e.g. 77.4538
+  final String noticePolicy; // '2_hours_surprise' | 'routine_scheduled' | 'immediate_verification'
+  final DateTime? scheduledInspectionTime;
 
   const ZoneModel({
     required this.id,
@@ -35,7 +44,18 @@ class ZoneModel {
     this.activeRoomUrl,
     this.inchargePhone,
     this.inchargeName,
+    this.pastThreeDaysDetected = const [63, 59, 61],
+    this.persistentAnomalyDays = 3,
+    this.cameraUptimePercent = 96.7,
+    this.totalDowntimeMinutes = 19,
+    this.lastOutageWindow = 'Today 10:32 AM – 10:51 AM',
+    this.targetLatitude = 28.6692,
+    this.targetLongitude = 77.4538,
+    this.noticePolicy = '2_hours_surprise',
+    this.scheduledInspectionTime,
   });
+
+  bool get isPersistentAnomaly => persistentAnomalyDays >= 3;
 
   ZoneModel copyWith({
     String? id,
@@ -55,6 +75,15 @@ class ZoneModel {
     String? activeRoomUrl,
     String? inchargePhone,
     String? inchargeName,
+    List<int>? pastThreeDaysDetected,
+    int? persistentAnomalyDays,
+    double? cameraUptimePercent,
+    int? totalDowntimeMinutes,
+    String? lastOutageWindow,
+    double? targetLatitude,
+    double? targetLongitude,
+    String? noticePolicy,
+    DateTime? scheduledInspectionTime,
   }) {
     return ZoneModel(
       id: id ?? this.id,
@@ -74,6 +103,15 @@ class ZoneModel {
       activeRoomUrl: activeRoomUrl ?? this.activeRoomUrl,
       inchargePhone: inchargePhone ?? this.inchargePhone,
       inchargeName: inchargeName ?? this.inchargeName,
+      pastThreeDaysDetected: pastThreeDaysDetected ?? this.pastThreeDaysDetected,
+      persistentAnomalyDays: persistentAnomalyDays ?? this.persistentAnomalyDays,
+      cameraUptimePercent: cameraUptimePercent ?? this.cameraUptimePercent,
+      totalDowntimeMinutes: totalDowntimeMinutes ?? this.totalDowntimeMinutes,
+      lastOutageWindow: lastOutageWindow ?? this.lastOutageWindow,
+      targetLatitude: targetLatitude ?? this.targetLatitude,
+      targetLongitude: targetLongitude ?? this.targetLongitude,
+      noticePolicy: noticePolicy ?? this.noticePolicy,
+      scheduledInspectionTime: scheduledInspectionTime ?? this.scheduledInspectionTime,
     );
   }
 

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../providers/audit_providers.dart';
 import 'dashboard_screen.dart';
 import 'incharge_portal_screen.dart';
+import 'inspector_app_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -16,11 +17,11 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController =
-      TextEditingController(text: 'auditor.lead@sentinel.org');
-  final _passwordController = TextEditingController(text: 'Inspector#2026');
+      TextEditingController(text: 'official.lead@dosje.gov.in');
+  final _passwordController = TextEditingController(text: 'Official#2026');
   bool _isLoading = false;
   bool _obscurePassword = true;
-  bool _isAuditorRole = true; // true = Ministry Auditor, false = Site Incharge
+  String _activeRole = 'official'; // 'official' | 'inspector' | 'incharge'
   String _selectedFacilityId = 'zone-101';
 
   @override
@@ -30,11 +31,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
-  void _switchRole(bool isAuditor) {
+  void _switchRole(String role) {
     setState(() {
-      _isAuditorRole = isAuditor;
-      if (isAuditor) {
-        _emailController.text = 'auditor.lead@sentinel.org';
+      _activeRole = role;
+      if (role == 'official') {
+        _emailController.text = 'official.lead@dosje.gov.in';
+        _passwordController.text = 'Official#2026';
+      } else if (role == 'inspector') {
+        _emailController.text = 'inspector.pmu04@dosje.gov.in';
         _passwordController.text = 'Inspector#2026';
       } else {
         _emailController.text = 'incharge.delhi@dosje-rehab.org';
@@ -43,22 +47,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
   }
 
+  Widget _buildRoleTab(String role, String label, Color color) {
+    final isSelected = _activeRole == role;
+    return Expanded(
+      child: GestureDetector(
+        onTap: () => _switchRole(role),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? color : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          alignment: Alignment.center,
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.white60,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
-    await Future.delayed(const Duration(milliseconds: 600));
+    await Future.delayed(const Duration(milliseconds: 500));
 
     if (mounted) {
       ref.read(currentUserProvider.notifier).signIn(
             _emailController.text,
             _passwordController.text,
+            role: _activeRole,
           );
       setState(() => _isLoading = false);
 
-      if (_isAuditorRole) {
+      if (_activeRole == 'official') {
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+      } else if (_activeRole == 'inspector') {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const InspectorAppScreen()),
         );
       } else {
         Navigator.of(context).pushReplacement(
@@ -80,7 +115,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28.0),
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: Form(
               key: _formKey,
               child: Column(
@@ -88,50 +123,50 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Container(
-                    width: 90,
-                    height: 90,
+                    width: 80,
+                    height: 80,
                     decoration: BoxDecoration(
                       color: const Color(0xFF131920),
                       shape: BoxShape.circle,
-                      border:
-                          Border.all(color: const Color(0xFF26303D), width: 2),
+                      border: Border.all(color: const Color(0xFF26303D), width: 2),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.cyanAccent.withOpacity(0.18),
+                          color: Colors.cyanAccent.withValues(alpha: 0.18),
                           blurRadius: 28,
                           spreadRadius: 2,
                         ),
                       ],
                     ),
                     child: const Icon(
-                      Icons.security_rounded,
-                      size: 46,
+                      Icons.account_balance_rounded,
+                      size: 42,
                       color: Colors.cyanAccent,
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
                   Text(
-                    'Attendance & Surveillance Sentinel',
+                    'DrishtiSetu',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.outfit(
-                      fontSize: 22,
+                      fontSize: 26,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,
                       letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 4),
                   Text(
-                    'Biometric Turnstile vs YOLO AI Discrepancy Engine',
+                    'Intelligent Scheme Monitoring & Inspection Platform\nDoSJE • Problem Statement 26095',
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
-                      fontSize: 13,
+                      fontSize: 12,
                       color: Colors.white60,
+                      height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
 
-                  // Modern Segmented Role Switcher
+                  // 3-Way Segmented Role Switcher
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
@@ -141,56 +176,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     child: Row(
                       children: [
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _switchRole(true),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: _isAuditorRole ? const Color(0xFF00B4D8) : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                '🏛️ Auditor Console',
-                                style: TextStyle(
-                                  color: _isAuditorRole ? Colors.white : Colors.white60,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        Expanded(
-                          child: GestureDetector(
-                            onTap: () => _switchRole(false),
-                            child: AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
-                              padding: const EdgeInsets.symmetric(vertical: 10),
-                              decoration: BoxDecoration(
-                                color: !_isAuditorRole ? Colors.teal : Colors.transparent,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              alignment: Alignment.center,
-                              child: Text(
-                                '🏢 Site Incharge',
-                                style: TextStyle(
-                                  color: !_isAuditorRole ? Colors.white : Colors.white60,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                        _buildRoleTab('official', '🏛️ DoSJE Official', const Color(0xFF00B4D8)),
+                        _buildRoleTab('inspector', '📱 Inspector', Colors.purpleAccent),
+                        _buildRoleTab('incharge', '🏢 Incharge', Colors.teal),
                       ],
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  if (!_isAuditorRole) ...[
+                  if (_activeRole == 'incharge') ...[
                     // Facility Selector for Incharge
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
@@ -233,11 +227,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     keyboardType: TextInputType.emailAddress,
                     style: const TextStyle(color: Colors.white),
                     decoration: InputDecoration(
-                      labelText: _isAuditorRole ? 'Auditor Official Email' : 'Site Incharge ID',
+                      labelText: _activeRole == 'official'
+                          ? 'DoSJE Official Email'
+                          : _activeRole == 'inspector'
+                              ? 'Inspector Service ID / Email'
+                              : 'Site Incharge ID',
                       labelStyle: const TextStyle(color: Colors.white60),
                       prefixIcon: Icon(
-                        _isAuditorRole ? Icons.badge_outlined : Icons.business_center_outlined,
-                        color: _isAuditorRole ? Colors.cyanAccent : Colors.tealAccent,
+                        _activeRole == 'official'
+                            ? Icons.badge_outlined
+                            : _activeRole == 'inspector'
+                                ? Icons.verified_user_outlined
+                                : Icons.business_center_outlined,
+                        color: _activeRole == 'official'
+                            ? Colors.cyanAccent
+                            : _activeRole == 'inspector'
+                                ? Colors.purpleAccent
+                                : Colors.tealAccent,
                       ),
                       filled: true,
                       fillColor: const Color(0xFF131920),
@@ -247,7 +253,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: _isAuditorRole ? Colors.cyanAccent : Colors.tealAccent),
+                        borderSide: BorderSide(
+                          color: _activeRole == 'official'
+                              ? Colors.cyanAccent
+                              : _activeRole == 'inspector'
+                                  ? Colors.purpleAccent
+                                  : Colors.tealAccent,
+                        ),
                       ),
                     ),
                     validator: (v) => v == null || !v.contains('@')
@@ -320,7 +332,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   Text(
-                    'Confidential Internal Audit Terminal v4.2',
+                    'Confidential Internal Audit Terminal v5.0',
                     textAlign: TextAlign.center,
                     style:
                         GoogleFonts.inter(fontSize: 11, color: Colors.white24),

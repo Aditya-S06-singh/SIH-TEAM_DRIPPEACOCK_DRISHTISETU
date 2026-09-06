@@ -22,15 +22,23 @@ class SentinelDataRepository {
       floor: 'Floor 1',
       cctvStreamUrl: 'http://127.0.0.1:8089/stream',
       isCameraOnline: false,
-      expectedCount: 0,
-      detectedCount: 0,
-      discrepancy: 0,
-      severity: 'normal',
+      expectedCount: 92,
+      detectedCount: 57,
+      discrepancy: 35,
+      severity: 'critical',
       lastAuditTimestamp: DateTime.now(),
       uncheckedSince: null,
       escalated: false,
       inchargeName: 'Dr. Ramesh Kumar',
       inchargePhone: '+919876543210',
+      pastThreeDaysDetected: const [63, 59, 61],
+      persistentAnomalyDays: 3,
+      cameraUptimePercent: 96.7,
+      totalDowntimeMinutes: 19,
+      lastOutageWindow: 'Today 10:32 AM – 10:51 AM',
+      targetLatitude: 28.6692,
+      targetLongitude: 77.4538,
+      noticePolicy: '2_hours_surprise',
     ),
     ZoneModel(
       id: 'zone-102',
@@ -47,6 +55,14 @@ class SentinelDataRepository {
       escalated: true,
       inchargeName: 'Er. Rajesh Varma',
       inchargePhone: '+919811223344',
+      pastThreeDaysDetected: const [12, 5, 0],
+      persistentAnomalyDays: 3,
+      cameraUptimePercent: 78.4,
+      totalDowntimeMinutes: 142,
+      lastOutageWindow: 'Yesterday 14:00 PM – 16:22 PM',
+      targetLatitude: 31.6340,
+      targetLongitude: 74.8723,
+      noticePolicy: '2_hours_surprise',
     ),
     ZoneModel(
       id: 'zone-103',
@@ -63,6 +79,14 @@ class SentinelDataRepository {
       escalated: false,
       inchargeName: 'Ms. Anita Sharma',
       inchargePhone: '+919899887766',
+      pastThreeDaysDetected: const [8, 8, 6],
+      persistentAnomalyDays: 1,
+      cameraUptimePercent: 99.2,
+      totalDowntimeMinutes: 4,
+      lastOutageWindow: '3 days ago 04:10 AM – 04:14 AM',
+      targetLatitude: 26.8467,
+      targetLongitude: 80.9462,
+      noticePolicy: 'routine_scheduled',
     ),
     ZoneModel(
       id: 'zone-104',
@@ -79,6 +103,14 @@ class SentinelDataRepository {
       escalated: false,
       inchargeName: 'Shri Vikram Malhotra',
       inchargePhone: '+919822334455',
+      pastThreeDaysDetected: const [22, 22, 22],
+      persistentAnomalyDays: 0,
+      cameraUptimePercent: 99.9,
+      totalDowntimeMinutes: 0,
+      lastOutageWindow: 'None in last 30 days',
+      targetLatitude: 28.6139,
+      targetLongitude: 77.2090,
+      noticePolicy: 'routine_scheduled',
     ),
   ];
 
@@ -161,26 +193,53 @@ class SentinelDataRepository {
     }
   }
 
+  Stream<List<InspectionModel>> watchInspections() async* {
+    yield List.unmodifiable(_inspections);
+  }
+
   void submitInspectionLog({
     required String zoneId,
     required String findings,
     required int manualCountVerified,
     required String status,
+    bool gpsVerified = true,
+    double gpsDistanceMeters = 73.0,
+    String? geoOverrideReason,
   }) {
     final inspectionId = const Uuid().v4();
+    final idx = _zones.indexWhere((z) => z.id == zoneId);
+    final currentZone = idx != -1 ? _zones[idx] : null;
+
+    final reported = currentZone?.expectedCount ?? 92;
+    final aiDetected = currentZone?.detectedCount ?? 57;
+    final aiDisc = reported - aiDetected;
+    final physDisc = reported - manualCountVerified;
+    final compliance = ((manualCountVerified / (reported > 0 ? reported : 1)) * 100).clamp(0, 100).toInt();
+
     final inspection = InspectionModel(
       id: inspectionId,
       zoneId: zoneId,
+      zoneName: currentZone?.name ?? 'Central Assembly Hall',
       inspectorId: 'auditor-001',
-      inspectorName: 'Chief Field Auditor',
+      inspectorName: 'Aditya Singh (Lead PMU Auditor)',
       timestamp: DateTime.now(),
       findings: findings,
       manualCountVerified: manualCountVerified,
       status: status,
+      gpsVerified: gpsVerified,
+      gpsDistanceMeters: gpsDistanceMeters,
+      geoOverrideReason: geoOverrideReason,
+      reportedBeneficiaries: reported,
+      aiDetectedCount: aiDetected,
+      physicalHeadcount: manualCountVerified,
+      aiDiscrepancy: aiDisc,
+      physicalDiscrepancy: physDisc,
+      compliancePercent: compliance,
+      verdict: physDisc > 5 ? 'NON_COMPLIANT' : 'COMPLIANT',
+      auditHash: 'sha256_${DateTime.now().millisecondsSinceEpoch}_${zoneId.hashCode}',
     );
-    _inspections.add(inspection);
+    _inspections.insert(0, inspection);
 
-    final idx = _zones.indexWhere((z) => z.id == zoneId);
     if (idx != -1) {
       final current = _zones[idx];
       if (status == 'resolved') {
@@ -195,6 +254,52 @@ class SentinelDataRepository {
       }
     }
     _emit();
+  }
+
+  void verifyManualAnomaly({
+    required String zoneId,
+    required String decision, // 'false_alarm' | 'continue_monitoring' | 'surprise_inspection'
+    required String reason,
+  }) {
+    final idx = _zones.indexWhere((z) => z.id == zoneId);
+    if (idx != -1) {
+      final current = _zones[idx];
+      if (decision == 'false_alarm') {
+        _zones[idx] = current.copyWith(
+          severity: 'normal',
+          discrepancy: 0,
+          escalated: false,
+        );
+      } else if (decision == 'surprise_inspection') {
+        _zones[idx] = current.copyWith(
+          severity: 'critical',
+          escalated: true,
+          noticePolicy: '2_hours_surprise',
+          scheduledInspectionTime: DateTime.now().add(const Duration(hours: 2)),
+        );
+        _alerts.insert(
+          0,
+          AlertModel(
+            id: const Uuid().v4(),
+            zoneId: zoneId,
+            zoneName: current.name,
+            type: 'surprise_inspection_triggered',
+            severity: 'critical',
+            timestamp: DateTime.now(),
+            acknowledged: false,
+          ),
+        );
+      }
+      _emit();
+    }
+  }
+
+  void updateNoticePolicy(String zoneId, String policy) {
+    final idx = _zones.indexWhere((z) => z.id == zoneId);
+    if (idx != -1) {
+      _zones[idx] = _zones[idx].copyWith(noticePolicy: policy);
+      _emit();
+    }
   }
 
   void triggerEscalation(String zoneId, String reason) {
@@ -240,6 +345,7 @@ class SentinelDataRepository {
         isCameraOnline: newOnline,
         detectedCount: newOnline ? current.expectedCount - current.discrepancy : 0,
       );
+      _emit();
     }
   }
 
@@ -323,16 +429,18 @@ class AuthStateNotifier extends StateNotifier<AppUser?> {
       : super(const AppUser(
           id: 'user-001',
           email: 'lead.auditor@sentinel.org',
-          fullName: 'Aditya Singh (Lead Auditor)',
-          role: 'security_lead',
+          fullName: 'Aditya Singh (Lead PMU Auditor)',
+          role: 'official', // 'official' | 'inspector' | 'incharge'
         ));
 
-  void signIn(String email, String password) {
+  void signIn(String email, String password, {String role = 'official'}) {
     state = AppUser(
       id: 'user-001',
       email: email,
-      fullName: 'Field Inspector',
-      role: 'security_lead',
+      fullName: role == 'official'
+          ? 'Aditya Singh (DoSJE Lead Official)'
+          : (role == 'inspector' ? 'Er. Vikram Sharma (PMU-04 Inspector)' : 'Dr. Ramesh Kumar (Project Incharge)'),
+      role: role,
     );
   }
 
@@ -370,6 +478,11 @@ final criticalAlertsCountProvider = Provider<int>((ref) {
   );
 });
 
+final recentInspectionsStreamProvider = StreamProvider<List<InspectionModel>>((ref) {
+  final repo = ref.watch(sentinelRepositoryProvider);
+  return repo.watchInspections();
+});
+
 class InspectionActionController extends StateNotifier<AsyncValue<void>> {
   final SentinelDataRepository _repo;
 
@@ -380,6 +493,9 @@ class InspectionActionController extends StateNotifier<AsyncValue<void>> {
     required String findings,
     required int manualCountVerified,
     required String status,
+    bool gpsVerified = true,
+    double gpsDistanceMeters = 73.0,
+    String? geoOverrideReason,
   }) async {
     state = const AsyncValue.loading();
     await Future.delayed(const Duration(milliseconds: 300));
@@ -388,8 +504,26 @@ class InspectionActionController extends StateNotifier<AsyncValue<void>> {
       findings: findings,
       manualCountVerified: manualCountVerified,
       status: status,
+      gpsVerified: gpsVerified,
+      gpsDistanceMeters: gpsDistanceMeters,
+      geoOverrideReason: geoOverrideReason,
     );
     state = const AsyncValue.data(null);
+  }
+
+  Future<void> verifyManualAnomaly({
+    required String zoneId,
+    required String decision,
+    required String reason,
+  }) async {
+    state = const AsyncValue.loading();
+    await Future.delayed(const Duration(milliseconds: 300));
+    _repo.verifyManualAnomaly(zoneId: zoneId, decision: decision, reason: reason);
+    state = const AsyncValue.data(null);
+  }
+
+  Future<void> updateNoticePolicy(String zoneId, String policy) async {
+    _repo.updateNoticePolicy(zoneId, policy);
   }
 
   Future<void> triggerManualEscalation(String zoneId, String reason) async {
@@ -428,3 +562,4 @@ final inspectionActionControllerProvider =
     StateNotifierProvider<InspectionActionController, AsyncValue<void>>((ref) {
   return InspectionActionController(ref.watch(sentinelRepositoryProvider));
 });
+

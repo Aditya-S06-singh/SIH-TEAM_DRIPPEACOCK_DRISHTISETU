@@ -659,9 +659,260 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
             ),
           ),
 
-          // Audit Form
+          // 3-Day Persistent Anomaly Intelligence Card
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131920),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: zone.isPersistentAnomaly
+                    ? Colors.redAccent
+                    : const Color(0xFF26303D),
+                width: zone.isPersistentAnomaly ? 1.5 : 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          zone.isPersistentAnomaly
+                              ? Icons.warning_amber_rounded
+                              : Icons.analytics_outlined,
+                          color: zone.isPersistentAnomaly
+                              ? Colors.redAccent
+                              : Colors.cyanAccent,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          '3-Day Anomaly Rule',
+                          style: GoogleFonts.outfit(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: zone.isPersistentAnomaly
+                            ? Colors.redAccent.withValues(alpha: 0.2)
+                            : Colors.orangeAccent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                          color: zone.isPersistentAnomaly
+                              ? Colors.redAccent
+                              : Colors.orangeAccent,
+                          width: 0.8,
+                        ),
+                      ),
+                      child: Text(
+                        zone.isPersistentAnomaly
+                            ? '🔴 PERSISTENT (3 DAYS)'
+                            : '🟡 TRANSIENT (${zone.persistentAnomalyDays}/3 DAYS)',
+                        style: TextStyle(
+                          color: zone.isPersistentAnomaly
+                              ? Colors.redAccent
+                              : Colors.orangeAccent,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  zone.isPersistentAnomaly
+                      ? 'Attendance anomaly detected for 3 consecutive days. Trigger criteria met for surprise field inspection under DoSJE guidelines.'
+                      : 'Temporary attendance fluctuation detected. Single-day spikes do not immediately trigger surprise inspections.',
+                  style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.4),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    for (int i = 0; i < zone.pastThreeDaysDetected.length; i++)
+                      Expanded(
+                        child: Container(
+                          margin: EdgeInsets.only(right: i < 2 ? 8 : 0),
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF090D12),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF26303D)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Day ${i + 1} (YOLO)',
+                                style: const TextStyle(color: Colors.white38, fontSize: 10),
+                              ),
+                              const SizedBox(height: 2),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '${zone.pastThreeDaysDetected[i]}',
+                                    style: TextStyle(
+                                      color: zone.pastThreeDaysDetected[i] < zone.expectedCount
+                                          ? Colors.redAccent
+                                          : Colors.tealAccent,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                  Text(
+                                    'exp: ${zone.expectedCount}',
+                                    style: const TextStyle(color: Colors.white54, fontSize: 10),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Camera Health & Downtime Factor Card
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131920),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF26303D)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Column(
+                  children: [
+                    Text('Camera Uptime', style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${zone.cameraUptimePercent.toStringAsFixed(1)}%',
+                      style: GoogleFonts.outfit(
+                        color: zone.cameraUptimePercent >= 95 ? Colors.tealAccent : Colors.orangeAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+                Container(height: 24, width: 1, color: const Color(0xFF26303D)),
+                Column(
+                  children: [
+                    Text('Last Outage', style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                    const SizedBox(height: 4),
+                    Text(
+                      zone.lastOutageWindow,
+                      style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
+                Container(height: 24, width: 1, color: const Color(0xFF26303D)),
+                Column(
+                  children: [
+                    Text('Downtime Logged', style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${zone.totalDowntimeMinutes} min',
+                      style: GoogleFonts.outfit(
+                        color: zone.totalDowntimeMinutes > 30 ? Colors.redAccent : Colors.cyanAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Notice Policy & Dispatch Config Strip
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131920),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF26303D)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.timer_outlined, color: Colors.orangeAccent, size: 18),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Surprise Notice Policy', style: GoogleFonts.outfit(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                        Text('Current: ${zone.noticePolicy.toUpperCase()}', style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                      ],
+                    ),
+                  ],
+                ),
+                DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: const ['2_hours_surprise', 'immediate', '24h_routine'].contains(zone.noticePolicy)
+                        ? zone.noticePolicy
+                        : '2_hours_surprise',
+                    dropdownColor: const Color(0xFF131920),
+                    items: const [
+                      DropdownMenuItem(
+                        value: '2_hours_surprise',
+                        child: Text('2h Advance (Surprise)',
+                            style: TextStyle(color: Colors.orangeAccent, fontSize: 11)),
+                      ),
+                      DropdownMenuItem(
+                        value: 'immediate',
+                        child: Text('Immediate (No Notice)',
+                            style: TextStyle(color: Colors.redAccent, fontSize: 11)),
+                      ),
+                      DropdownMenuItem(
+                        value: '24h_routine',
+                        child: Text('24h (Routine)',
+                            style: TextStyle(color: Colors.tealAccent, fontSize: 11)),
+                      ),
+                    ],
+                    onChanged: (val) {
+                      if (val != null) {
+                        ref.read(inspectionActionControllerProvider.notifier).updateNoticePolicy(zone.id, val);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Notice policy updated to $val'), backgroundColor: Colors.teal),
+                        );
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Human-in-the-Loop Manual Verification & Audit Form
           Padding(
-            padding: const EdgeInsets.all(20.0),
+            padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -669,8 +920,8 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Physical Audit Verification Form',
-                      style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      'Human-in-the-Loop Decision Matrix',
+                      style: GoogleFonts.outfit(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                     ),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -686,13 +937,13 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _manualCountController,
                   keyboardType: TextInputType.number,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'Manual Headcount Verified by Auditor',
+                    labelText: 'Physical Headcount / Register Cross-Check',
                     labelStyle: const TextStyle(color: Colors.white60),
                     prefixIcon: const Icon(Icons.pin, color: Colors.cyanAccent),
                     hintText: 'e.g. ${zone.expectedCount}',
@@ -709,16 +960,16 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 TextFormField(
                   controller: _findingsController,
-                  maxLines: 3,
+                  maxLines: 2,
                   style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
-                    labelText: 'Auditor Observation & Field Findings',
+                    labelText: 'Auditor Intelligence Notes & Verification Reason',
                     labelStyle: const TextStyle(color: Colors.white60),
                     prefixIcon: const Icon(Icons.notes, color: Colors.cyanAccent),
-                    hintText: 'e.g. Turnstile tailgating observed near entry point...',
+                    hintText: 'e.g. Verified camera field-of-view; outdoor training batch accounted for...',
                     hintStyle: const TextStyle(color: Colors.white24),
                     filled: true,
                     fillColor: const Color(0xFF131920),
@@ -732,59 +983,87 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
 
-                // Actions
+                // 3 Decision Buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.close, size: 14, color: Colors.white70),
+                        label: const Text('False Alarm', style: TextStyle(color: Colors.white70, fontSize: 11)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.white24),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () async {
+                          await ref.read(inspectionActionControllerProvider.notifier).verifyManualAnomaly(
+                                zoneId: zone.id,
+                                decision: 'false_alarm',
+                                reason: _findingsController.text.isNotEmpty ? _findingsController.text : 'Marked as false alarm by auditor',
+                              );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Marked as False Alarm. Risk reset.'), backgroundColor: Colors.blueGrey),
+                            );
+                            Navigator.pop(context);
+                          }
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.visibility, size: 14, color: Colors.orangeAccent),
+                        label: const Text('Keep Watch', style: TextStyle(color: Colors.orangeAccent, fontSize: 11)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.orangeAccent),
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                        ),
+                        onPressed: () async {
+                          await ref.read(inspectionActionControllerProvider.notifier).verifyManualAnomaly(
+                                zoneId: zone.id,
+                                decision: 'continue_monitoring',
+                                reason: _findingsController.text.isNotEmpty ? _findingsController.text : 'Continued monitoring ordered',
+                              );
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: Text('Monitoring window extended.'), backgroundColor: Colors.orangeAccent),
+                            );
+                            Navigator.pop(context);
+                          }
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
                 ElevatedButton.icon(
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('Verify & Clear Discrepancy Alert'),
+                  icon: const Icon(Icons.local_police_outlined, size: 18),
+                  label: const Text('GENERATE SURPRISE INSPECTION (2H NOTICE)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal.shade700,
+                    backgroundColor: Colors.redAccent.shade700,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
                   onPressed: () async {
                     final manualCount = int.tryParse(_manualCountController.text) ?? zone.detectedCount;
+                    await ref.read(inspectionActionControllerProvider.notifier).verifyManualAnomaly(
+                          zoneId: zone.id,
+                          decision: 'generate_surprise_inspection',
+                          reason: _findingsController.text.isNotEmpty ? _findingsController.text : '3-Day persistent anomaly triggered surprise inspection.',
+                        );
                     await ref.read(inspectionActionControllerProvider.notifier).submitInspectionLog(
                           zoneId: zone.id,
-                          findings: _findingsController.text.isNotEmpty
-                              ? _findingsController.text
-                              : 'Manual audit performed. Counts reconciled.',
+                          findings: 'SURPRISE INSPECTION GENERATED: 3-day persistent anomaly. ${_findingsController.text}',
                           manualCountVerified: manualCount,
-                          status: 'resolved',
+                          status: 'escalated',
                         );
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text('Discrepancy verified and marked resolved.'),
-                          backgroundColor: Colors.teal,
-                        ),
-                      );
-                      Navigator.pop(context);
-                    }
-                  },
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  icon: const Icon(Icons.notification_important_outlined, color: Colors.redAccent),
-                  label: const Text('Trigger Urgent Authority Escalation', style: TextStyle(color: Colors.redAccent)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.redAccent),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  onPressed: () async {
-                    await ref.read(inspectionActionControllerProvider.notifier).triggerManualEscalation(
-                          zone.id,
-                          _findingsController.text.isNotEmpty
-                              ? _findingsController.text
-                              : 'Immediate physical discrepancy detected by field auditor.',
-                        );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Discrepancy escalated to Police and Security dispatch.'),
+                          content: Text('🚨 Surprise Inspection Order Generated & Dispatched to Field PMU!'),
                           backgroundColor: Colors.redAccent,
                         ),
                       );
