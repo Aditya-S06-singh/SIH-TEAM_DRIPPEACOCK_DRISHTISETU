@@ -153,17 +153,26 @@ people_count = 0
 
 print(f"[YOLO Engine Active] Fetching frames directly from: {source}")
 
+cap = None
+if source.isdigit():
+    cap = cv2.VideoCapture(int(source))
+elif not source.startswith('http'):
+    cap = cv2.VideoCapture(source)
+
 while True:
     frame = None
-    try:
-        req = urllib.request.Request(source, headers={'User-Agent': 'Mozilla/5.0'})
-        with urllib.request.urlopen(req, timeout=1.5) as resp:
-            raw_data = resp.read()
-            if raw_data:
-                img_array = np.asarray(bytearray(raw_data), dtype=np.uint8)
-                frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
-    except Exception:
-        pass
+    if cap is not None:
+        ret, frame = cap.read()
+    else:
+        try:
+            req = urllib.request.Request(source, headers={'User-Agent': 'Mozilla/5.0'})
+            with urllib.request.urlopen(req, timeout=1.5) as resp:
+                raw_data = resp.read()
+                if raw_data:
+                    img_array = np.asarray(bytearray(raw_data), dtype=np.uint8)
+                    frame = cv2.imdecode(img_array, cv2.IMREAD_COLOR)
+        except Exception:
+            pass
 
     if frame is None:
         time.sleep(0.15)

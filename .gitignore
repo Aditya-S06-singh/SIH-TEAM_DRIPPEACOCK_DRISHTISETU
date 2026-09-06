@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.pt
+people_count.csv
+screen_*.png
+dhristisetu_app/build/
+dhristisetu_app/.dart_tool/
+dhristisetu_app/android/.gradle/
+
