@@ -150,6 +150,7 @@ class AppwritePollerService {
 
     final auditTimestamp = DateTime.now().toIso8601String();
 
+    // Only send attributes that exist in the Appwrite collection schema
     final Map<String, dynamic> auditData = {
       'expectedCount': expectedCount,
       'detectedCount': detectedCount,
@@ -157,17 +158,8 @@ class AppwritePollerService {
       'severity': severity,
       'isCameraOnline': isCameraOnline,
       'lastAuditTimestamp': auditTimestamp,
-      'geoTagLocation': geoTagLocation ?? 'GPS: 28.6692°N, 77.4538°E (VERIFIED)',
-      'inspectionVerdict': verdict ?? (deficit > 5 ? 'NON_COMPLIANT' : 'COMPLIANT'),
-      'inspectorFindings': findings ?? 'Physical audit verified on site by Field Inspector',
     };
 
-    if (photoBase64 != null) {
-      auditData['sitePhotoEvidence'] = photoBase64;
-    }
-    if (detailsPhotoPath != null) {
-      auditData['detailsPhotoPath'] = detailsPhotoPath;
-    }
     if (checklistPhotoEvidence.isNotEmpty) {
       auditData['checklistPhotos'] = jsonEncode(checklistPhotoEvidence);
     }
@@ -192,6 +184,9 @@ class AppwritePollerService {
       if (res.statusCode == 200) {
         fetchAllZones();
         return true;
+      } else {
+        // Log Appwrite rejection response
+        // print('Appwrite update failed (${res.statusCode}): ${res.body}');
       }
     } catch (_) {}
     return false;
