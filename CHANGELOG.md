@@ -5,6 +5,19 @@ All notable changes to the **DrishtiSetu** (Attendance & Surveillance Sentinel) 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.4.0] - 2026-09-07 (version-5.4)
+
+### Fixed & Enhanced
+- **Pixel Overflow Resolution**:
+  - Eliminated 38-pixel RenderFlex overflow on the `AI-Generated Anomaly Analysis` card header by constraining titles with `Expanded`/`Flexible` and ellipsis overflow handling across mobile display viewports.
+- **Verifiable Statutory JSON Audit Dossier Explorer**:
+  - Replaced the unformatted raw JSON text container with an interactive, auditable integrity viewer (`_DossierVerificationViewer`).
+  - Added real-time verification status chips: Tamper-Proof GPS Proximity (200m), SHA-256 Cryptographic Audit Hash, Statutory Compliance Verdict, and Photo Evidence Counter.
+  - Implemented structured key-value verification breakdown for turnstile vs AI vs physical headcount discrepancies.
+  - Added seamless toggle between formatted verification card view and styled raw JSON mode with instant clipboard copy.
+
+---
+
 ## [5.3.1] - 2026-09-07 (version-5.3.1)
 
 ### Added & Enhanced

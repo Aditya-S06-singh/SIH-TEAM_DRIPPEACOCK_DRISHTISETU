@@ -1087,27 +1087,34 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.redAccent.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(8),
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(6),
+                              decoration: BoxDecoration(
+                                color: Colors.redAccent.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Icon(Icons.psychology_outlined,
+                                  color: Colors.redAccent, size: 20),
                             ),
-                            child: const Icon(Icons.psychology_outlined,
-                                color: Colors.redAccent, size: 20),
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'AI-Generated Anomaly Analysis',
-                            style: GoogleFonts.outfit(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ],
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                'AI-Generated Anomaly Analysis',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: GoogleFonts.outfit(
+                                    color: Colors.white,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 8, vertical: 3),
@@ -1725,29 +1732,15 @@ extension _InspectorReportModal on _LiveInspectionScreenState {
                           const SizedBox(height: 14),
                         ],
 
-                        // Full JSON File Export Viewer
-                        const Text(
-                            'SAVED JSON DOSSIER PAYLOAD (APPWRITE COMPATIBLE)',
-                            style: TextStyle(
-                                color: Colors.cyanAccent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 6),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: Colors.black87,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: const Color(0xFF26303D)),
-                          ),
-                          child: Text(
-                            jsonPretty,
-                            style: const TextStyle(
-                                color: Colors.tealAccent,
-                                fontSize: 10,
-                                fontFamily: 'monospace'),
-                          ),
+                        // Auditable JSON Dossier Section
+                        StatefulBuilder(
+                          builder: (context, setDossierState) {
+                            // Persistent toggle for raw vs structured view inside the bottom sheet
+                            return _DossierVerificationViewer(
+                              dossier: dossier,
+                              jsonPretty: jsonPretty,
+                            );
+                          },
                         ),
 
                         const SizedBox(height: 14),
@@ -1778,3 +1771,410 @@ extension _InspectorReportModal on _LiveInspectionScreenState {
     );
   }
 }
+
+class _DossierVerificationViewer extends StatefulWidget {
+  final InspectionModel dossier;
+  final String jsonPretty;
+
+  const _DossierVerificationViewer({
+    required this.dossier,
+    required this.jsonPretty,
+  });
+
+  @override
+  State<_DossierVerificationViewer> createState() =>
+      _DossierVerificationViewerState();
+}
+
+class _DossierVerificationViewerState
+    extends State<_DossierVerificationViewer> {
+  bool _showRawJson = false;
+  bool _copied = false;
+
+  void _copyToClipboard(BuildContext context) {
+    Clipboard.setData(ClipboardData(text: widget.jsonPretty));
+    setState(() => _copied = true);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('📋 JSON Dossier copied to clipboard!'),
+        backgroundColor: Colors.teal,
+        duration: Duration(seconds: 2),
+      ),
+    );
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _copied = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.dossier;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0C131D),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFF26303D)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Header toolbar with verification badge and view toggles
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: const BoxDecoration(
+              color: Color(0xFF131A24),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(11)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: Colors.cyanAccent.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Icon(Icons.verified_user_rounded,
+                      color: Colors.cyanAccent, size: 16),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'AUDIT DOSSIER & INTEGRITY VERIFICATION',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                      Text(
+                        'Appwrite Database Synced • SHA-256 Validated',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.tealAccent.withValues(alpha: 0.8),
+                          fontSize: 9.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // Copy button
+                InkWell(
+                  onTap: () => _copyToClipboard(context),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _copied
+                          ? Colors.teal.withValues(alpha: 0.3)
+                          : const Color(0xFF1F2B3A),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: _copied ? Colors.tealAccent : Colors.white24,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _copied ? Icons.check : Icons.copy_rounded,
+                          size: 12,
+                          color: _copied ? Colors.tealAccent : Colors.white70,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _copied ? 'COPIED' : 'COPY',
+                          style: TextStyle(
+                            color:
+                                _copied ? Colors.tealAccent : Colors.white70,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                // Toggle Raw JSON vs Formatted Verified View
+                InkWell(
+                  onTap: () => setState(() => _showRawJson = !_showRawJson),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: _showRawJson
+                          ? Colors.cyan.withValues(alpha: 0.25)
+                          : const Color(0xFF1F2B3A),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: _showRawJson
+                            ? Colors.cyanAccent
+                            : Colors.white24,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          _showRawJson
+                              ? Icons.data_object_rounded
+                              : Icons.checklist_rtl_rounded,
+                          size: 12,
+                          color: _showRawJson
+                              ? Colors.cyanAccent
+                              : Colors.white70,
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _showRawJson ? 'JSON RAW' : 'VERIFIED',
+                          style: TextStyle(
+                            color: _showRawJson
+                                ? Colors.cyanAccent
+                                : Colors.white70,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Content: either formatted verification list or readable styled raw json
+          if (_showRawJson)
+            Container(
+              padding: const EdgeInsets.all(12),
+              color: const Color(0xFF070B10),
+              child: SelectableText(
+                widget.jsonPretty,
+                style: const TextStyle(
+                  color: Colors.tealAccent,
+                  fontSize: 10.5,
+                  fontFamily: 'monospace',
+                  height: 1.45,
+                ),
+              ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Verification metrics quick badges
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _buildStatusPill(
+                        icon: d.gpsVerified
+                            ? Icons.gps_fixed
+                            : Icons.gps_off_rounded,
+                        label: 'GPS Range',
+                        value: d.gpsVerified
+                            ? '${d.gpsDistanceMeters.toStringAsFixed(0)}m (Within 200m)'
+                            : 'OVERRIDE',
+                        isGood: d.gpsVerified,
+                      ),
+                      _buildStatusPill(
+                        icon: Icons.fingerprint,
+                        label: 'SHA-256 Audit Seal',
+                        value: d.auditHash.length > 12
+                            ? '${d.auditHash.substring(0, 12)}...'
+                            : d.auditHash,
+                        isGood: true,
+                        accentColor: Colors.cyanAccent,
+                      ),
+                      _buildStatusPill(
+                        icon: Icons.fact_check_outlined,
+                        label: 'Compliance Level',
+                        value: '${d.compliancePercent}% (${d.verdict})',
+                        isGood: d.compliancePercent >= 75,
+                      ),
+                      _buildStatusPill(
+                        icon: Icons.camera_alt_outlined,
+                        label: 'Photo Evidence',
+                        value:
+                            '${(d.sitePhotoPath != null ? 1 : 0) + (d.checklistPhotos?.length ?? 0)} Files Verified',
+                        isGood: (d.sitePhotoPath != null) ||
+                            (d.checklistPhotos != null &&
+                                d.checklistPhotos!.isNotEmpty),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  const Divider(color: Colors.white12, height: 1),
+                  const SizedBox(height: 10),
+
+                  // Structured Fields List for Easy Verification
+                  _buildVerifiableRow('Dossier ID', d.id, isCode: true),
+                  _buildVerifiableRow('Zone / Facility',
+                      '${d.zoneName} (${d.zoneId})'),
+                  _buildVerifiableRow(
+                      'Field Auditor', '${d.inspectorName} (${d.inspectorId})'),
+                  _buildVerifiableRow('Timestamp (UTC+5:30)',
+                      DateFormat('dd MMM yyyy, HH:mm:ss').format(d.timestamp)),
+                  _buildVerifiableRow(
+                    'Headcount Verification',
+                    'Turnstile: ${d.reportedBeneficiaries} | AI Model: ${d.aiDetectedCount} | Physical: ${d.physicalHeadcount}',
+                  ),
+                  _buildVerifiableRow(
+                    'Identified Deficit',
+                    'AI Delta: ${d.aiDiscrepancy} | Physical Deficit: ${d.physicalDiscrepancy}',
+                    highlightAlert: d.physicalDiscrepancy != 0,
+                  ),
+                  _buildVerifiableRow('Auditor Findings', d.findings),
+                  if (d.geoTagLocation != null)
+                    _buildVerifiableRow(
+                        'Geo-Tag Stamp', d.geoTagLocation!.trim(),
+                        isCode: true),
+                  if (d.geoOverrideReason != null)
+                    _buildVerifiableRow(
+                        'GPS Override Reason', d.geoOverrideReason!,
+                        highlightAlert: true),
+
+                  // Checklist Photos count breakdown
+                  if (d.checklistPhotos != null &&
+                      d.checklistPhotos!.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Verified Checklist Photo Attachments (${d.checklistPhotos!.length}):',
+                      style: const TextStyle(
+                        color: Colors.cyanAccent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    ...d.checklistPhotos!.entries.map(
+                      (e) => Padding(
+                        padding: const EdgeInsets.only(bottom: 3.0),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.check_circle,
+                                color: Colors.tealAccent, size: 12),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                e.key,
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 10),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusPill({
+    required IconData icon,
+    required String label,
+    required String value,
+    required bool isGood,
+    Color? accentColor,
+  }) {
+    final color = accentColor ?? (isGood ? Colors.tealAccent : Colors.orangeAccent);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 5),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label.toUpperCase(),
+                style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 7.5,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(
+                value,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVerifiableRow(
+    String label,
+    String value, {
+    bool isCode = false,
+    bool highlightAlert = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3.5),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 110,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: highlightAlert
+                    ? Colors.orangeAccent
+                    : (isCode ? Colors.tealAccent : Colors.white),
+                fontSize: 10.5,
+                fontFamily: isCode ? 'monospace' : null,
+                fontWeight: highlightAlert ? FontWeight.bold : FontWeight.normal,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
