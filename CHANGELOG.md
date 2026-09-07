@@ -5,6 +5,18 @@ All notable changes to the **DrishtiSetu** (Attendance & Surveillance Sentinel) 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.3.1] - 2026-09-07 (version-5.3.1)
+
+### Added & Enhanced
+- **AI-Generated Anomaly Intelligence Breakdown**:
+  - Replaced manual "Human-in-the-Loop Decision Matrix" on the official DoSJE console with an automated AI Anomaly Root-Cause Analysis engine.
+  - Explains the critical anomaly triggers: Hardware Tamper/Camera Outages, Ghost Attendance Deficits, 3-Day Persistent Anomaly patterns, and Geofence distance validations.
+- **Interactive JSON Dossier Explorer Interface**:
+  - Converted raw JSON dossier dumps into a structured, auditable key-value inspection tree.
+  - Added one-tap "Copy Full JSON to Clipboard", per-key inspection icons (photos, geolocations, cryptographic hashes), and clean audit modal presentation for DoSJE officials.
+
+---
+
 ## [5.3.0] - 2026-09-07 (version-5.3)
 
 ### Added & Enhanced

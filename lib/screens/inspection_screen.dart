@@ -1,11 +1,14 @@
 import 'dart:async';
-import 'dart:typed_data';
+import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 
+import '../models/inspection_model.dart';
 import '../models/zone_model.dart';
 import '../providers/audit_providers.dart';
 import '../services/whatsapp_call_service.dart';
@@ -17,7 +20,8 @@ class LiveInspectionScreen extends ConsumerStatefulWidget {
   const LiveInspectionScreen({super.key, required this.zoneId});
 
   @override
-  ConsumerState<LiveInspectionScreen> createState() => _LiveInspectionScreenState();
+  ConsumerState<LiveInspectionScreen> createState() =>
+      _LiveInspectionScreenState();
 }
 
 class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
@@ -30,10 +34,14 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
   bool _isListeningToFacilityMic = true;
 
   Future<void> _toggleTalkback(String cctvStreamUrl) async {
-    final targetUrl = cctvStreamUrl.isNotEmpty ? cctvStreamUrl : 'http://192.168.1.2:8088/stream';
+    final targetUrl = cctvStreamUrl.isNotEmpty
+        ? cctvStreamUrl
+        : 'http://192.168.1.2:8088/stream';
     final nodeAudioUri = targetUrl.replaceAll('/stream', '/audio/in');
 
-    final messageController = TextEditingController(text: 'Auditor speaking: Attention facility in-charge, please verify beneficiary headcount.');
+    final messageController = TextEditingController(
+        text:
+            'Auditor speaking: Attention facility in-charge, please verify beneficiary headcount.');
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -43,7 +51,8 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
           children: const [
             Icon(Icons.record_voice_over, color: Colors.tealAccent, size: 20),
             SizedBox(width: 8),
-            Text('Transmit Voice to Phone Speaker', style: TextStyle(color: Colors.white, fontSize: 15)),
+            Text('Transmit Voice to Phone Speaker',
+                style: TextStyle(color: Colors.white, fontSize: 15)),
           ],
         ),
         content: Column(
@@ -64,18 +73,21 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                 fillColor: const Color(0xFF1F2630),
                 hintText: 'Enter speech transmission...',
                 hintStyle: const TextStyle(color: Colors.white30),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
           ],
         ),
         actions: [
           TextButton(
-            child: const Text('Cancel', style: TextStyle(color: Colors.white60)),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.white60)),
             onPressed: () => Navigator.pop(ctx, false),
           ),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.teal, foregroundColor: Colors.white),
             icon: const Icon(Icons.volume_up, size: 16),
             label: const Text('TRANSMIT TO PHONE'),
             onPressed: () => Navigator.pop(ctx, true),
@@ -95,7 +107,10 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
       );
 
       final msg = messageController.text.trim();
-      final bodyBytes = msg.isNotEmpty ? msg.codeUnits : 'Auditor speaking: Please confirm headcount verification.'.codeUnits;
+      final bodyBytes = msg.isNotEmpty
+          ? msg.codeUnits
+          : 'Auditor speaking: Please confirm headcount verification.'
+              .codeUnits;
 
       final endpoints = [
         nodeAudioUri,
@@ -107,11 +122,13 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
       bool sent = false;
       for (final endpoint in endpoints) {
         try {
-          final res = await http.post(
-            Uri.parse(endpoint),
-            headers: {'Content-Type': 'application/octet-stream'},
-            body: bodyBytes,
-          ).timeout(const Duration(milliseconds: 1200));
+          final res = await http
+              .post(
+                Uri.parse(endpoint),
+                headers: {'Content-Type': 'application/octet-stream'},
+                body: bodyBytes,
+              )
+              .timeout(const Duration(milliseconds: 1200));
           if (res.statusCode == 200) {
             sent = true;
             break;
@@ -146,9 +163,16 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
     final path = newState ? '/mic/start' : '/mic/stop';
     bool success = false;
 
-    for (final host in ['http://10.0.2.2:8092', 'http://127.0.0.1:8092', 'http://192.168.1.4:8092', 'http://192.168.1.2:8092']) {
+    for (final host in [
+      'http://10.0.2.2:8092',
+      'http://127.0.0.1:8092',
+      'http://192.168.1.4:8092',
+      'http://192.168.1.2:8092'
+    ]) {
       try {
-        final res = await http.post(Uri.parse('$host$path')).timeout(const Duration(milliseconds: 1500));
+        final res = await http
+            .post(Uri.parse('$host$path'))
+            .timeout(const Duration(milliseconds: 1500));
         if (res.statusCode == 200) {
           success = true;
           break;
@@ -172,7 +196,8 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                     newState
                         ? '🎙 LIVE WALKIE-TALKIE TRANSMITTING: Speaking into laptop mic!'
                         : 'Walkie-Talkie stopped. Phone speaker standby.',
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                 ),
               ],
@@ -183,7 +208,8 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             backgroundColor: Colors.orangeAccent,
-            content: Text('Could not reach laptop mic bridge at port 8092. Checking service...'),
+            content: Text(
+                'Could not reach laptop mic bridge at port 8092. Checking service...'),
           ),
         );
       }
@@ -249,24 +275,40 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                 elevation: 0,
                 title: Text(
                   'Live Inspection Console',
-                  style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  style: GoogleFonts.outfit(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold),
                 ),
                 actions: [
                   IconButton(
+                    tooltip: 'View Inspector Audit Dossier & JSON',
+                    icon: const Icon(Icons.assignment_turned_in_rounded,
+                        color: Colors.tealAccent),
+                    onPressed: () =>
+                        _showInspectorReportDialog(context, widget.zoneId),
+                  ),
+                  IconButton(
                     tooltip: 'Full Screen Landscape',
-                    icon: const Icon(Icons.fullscreen_rounded, color: Colors.cyanAccent),
+                    icon: const Icon(Icons.fullscreen_rounded,
+                        color: Colors.cyanAccent),
                     onPressed: _toggleFullScreen,
                   ),
                   IconButton(
                     tooltip: 'Connect Phone Camera Stream',
-                    icon: const Icon(Icons.settings_remote_rounded, color: Colors.cyanAccent),
-                    onPressed: () => _showStreamUrlDialog(context, widget.zoneId),
+                    icon: const Icon(Icons.settings_remote_rounded,
+                        color: Colors.cyanAccent),
+                    onPressed: () =>
+                        _showStreamUrlDialog(context, widget.zoneId),
                   ),
                   IconButton(
                     tooltip: 'Simulate Camera Feed Status',
-                    icon: const Icon(Icons.sync_alt_rounded, color: Colors.cyanAccent),
+                    icon: const Icon(Icons.sync_alt_rounded,
+                        color: Colors.cyanAccent),
                     onPressed: () {
-                      ref.read(inspectionActionControllerProvider.notifier).toggleCamera(widget.zoneId);
+                      ref
+                          .read(inspectionActionControllerProvider.notifier)
+                          .toggleCamera(widget.zoneId);
                     },
                   )
                 ],
@@ -274,15 +316,20 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
         body: zoneAsync.when(
           data: (zone) {
             if (zone == null) {
-              return const Center(child: Text('Zone records unavailable', style: TextStyle(color: Colors.white)));
+              return const Center(
+                  child: Text('Zone records unavailable',
+                      style: TextStyle(color: Colors.white)));
             }
             if (_isFullScreen) {
               return _buildFullScreenVideoPlayer(zone);
             }
             return _buildConsoleContent(context, zone);
           },
-          loading: () => const Center(child: CircularProgressIndicator(color: Colors.cyanAccent)),
-          error: (err, _) => Center(child: Text('Error: $err', style: const TextStyle(color: Colors.red))),
+          loading: () => const Center(
+              child: CircularProgressIndicator(color: Colors.cyanAccent)),
+          error: (err, _) => Center(
+              child: Text('Error: $err',
+                  style: const TextStyle(color: Colors.red))),
         ),
       ),
     );
@@ -301,9 +348,14 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.videocam_off_rounded, size: 48, color: Colors.redAccent),
+                  const Icon(Icons.videocam_off_rounded,
+                      size: 48, color: Colors.redAccent),
                   const SizedBox(height: 8),
-                  Text('CAMERA NOT WORKING', style: GoogleFonts.outfit(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('CAMERA NOT WORKING',
+                      style: GoogleFonts.outfit(
+                          color: Colors.redAccent,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
                 ],
               ),
             ),
@@ -324,7 +376,8 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                 ),
                 child: IconButton(
                   tooltip: 'Exit Fullscreen',
-                  icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+                  icon:
+                      const Icon(Icons.arrow_back_rounded, color: Colors.white),
                   onPressed: _toggleFullScreen,
                 ),
               ),
@@ -334,7 +387,8 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                   child: FittedBox(
                     fit: BoxFit.scaleDown,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.75),
                         borderRadius: BorderRadius.circular(8),
@@ -345,23 +399,33 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                         children: [
                           Text(
                             'HEADCOUNT: ${zone.detectedCount}',
-                            style: GoogleFonts.outfit(color: Colors.cyanAccent, fontWeight: FontWeight.bold, fontSize: 13),
+                            style: GoogleFonts.outfit(
+                                color: Colors.cyanAccent,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13),
                           ),
                           const SizedBox(width: 10),
                           Text(
                             'GATE: ${zone.expectedCount}',
-                            style: GoogleFonts.outfit(color: Colors.white70, fontSize: 13),
+                            style: GoogleFonts.outfit(
+                                color: Colors.white70, fontSize: 13),
                           ),
                           const SizedBox(width: 10),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: zone.discrepancy > 5 ? Colors.redAccent : Colors.teal,
+                              color: zone.discrepancy > 5
+                                  ? Colors.redAccent
+                                  : Colors.teal,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               'DEFICIT: -${zone.discrepancy}',
-                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 11),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 11),
                             ),
                           ),
                         ],
@@ -377,7 +441,8 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                 ),
                 child: IconButton(
                   tooltip: 'Exit Fullscreen',
-                  icon: const Icon(Icons.fullscreen_exit_rounded, color: Colors.cyanAccent),
+                  icon: const Icon(Icons.fullscreen_exit_rounded,
+                      color: Colors.cyanAccent),
                   onPressed: _toggleFullScreen,
                 ),
               ),
@@ -408,20 +473,27 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Icon(Icons.videocam_off_rounded, size: 48, color: Colors.redAccent),
+                        const Icon(Icons.videocam_off_rounded,
+                            size: 48, color: Colors.redAccent),
                         const SizedBox(height: 8),
                         Text('CAMERA NOT WORKING',
-                            style: GoogleFonts.outfit(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                            style: GoogleFonts.outfit(
+                                color: Colors.redAccent,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold)),
                         const SizedBox(height: 4),
-                        Text('Feed Offline • Hardware Unresponsive • Anomaly Logged',
-                            style: GoogleFonts.inter(color: Colors.white70, fontSize: 11)),
+                        Text(
+                            'Feed Offline • Hardware Unresponsive • Anomaly Logged',
+                            style: GoogleFonts.inter(
+                                color: Colors.white70, fontSize: 11)),
                         const SizedBox(height: 12),
                         ElevatedButton.icon(
                           icon: const Icon(Icons.refresh, size: 16),
                           label: const Text('Re-initialize Pipeline'),
                           onPressed: () {
                             ref
-                                .read(inspectionActionControllerProvider.notifier)
+                                .read(
+                                    inspectionActionControllerProvider.notifier)
                                 .toggleCamera(zone.id);
                           },
                           style: ElevatedButton.styleFrom(
@@ -439,7 +511,8 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                   left: 12,
                   right: 12,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                     decoration: BoxDecoration(
                       color: Colors.black.withOpacity(0.8),
                       borderRadius: BorderRadius.circular(8),
@@ -472,9 +545,12 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 5),
                               decoration: BoxDecoration(
-                                color: zone.discrepancy > 5 ? Colors.redAccent : Colors.teal,
+                                color: zone.discrepancy > 5
+                                    ? Colors.redAccent
+                                    : Colors.teal,
                                 borderRadius: BorderRadius.circular(4),
                               ),
                               child: Text(
@@ -520,7 +596,9 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
               color: const Color(0xFF131920),
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
-                color: _isTalkingToFacility ? Colors.tealAccent : const Color(0xFF26303D),
+                color: _isTalkingToFacility
+                    ? Colors.tealAccent
+                    : const Color(0xFF26303D),
                 width: _isTalkingToFacility ? 1.5 : 1.0,
               ),
             ),
@@ -532,12 +610,16 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: _isTalkingToFacility ? Colors.tealAccent.withOpacity(0.2) : Colors.white.withOpacity(0.05),
+                        color: _isTalkingToFacility
+                            ? Colors.tealAccent.withOpacity(0.2)
+                            : Colors.white.withOpacity(0.05),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Icon(
                         _isTalkingToFacility ? Icons.mic : Icons.mic_none,
-                        color: _isTalkingToFacility ? Colors.tealAccent : Colors.white70,
+                        color: _isTalkingToFacility
+                            ? Colors.tealAccent
+                            : Colors.white70,
                         size: 20,
                       ),
                     ),
@@ -547,16 +629,21 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _isTalkingToFacility ? 'TRANSMITTING VOICE TO PHONE...' : 'Intercom & Remote VC Hub',
+                            _isTalkingToFacility
+                                ? 'TRANSMITTING VOICE TO PHONE...'
+                                : 'Intercom & Remote VC Hub',
                             style: GoogleFonts.outfit(
-                              color: _isTalkingToFacility ? Colors.tealAccent : Colors.white,
+                              color: _isTalkingToFacility
+                                  ? Colors.tealAccent
+                                  : Colors.white,
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           Text(
                             'Facility Incharge: ${zone.inchargeName ?? "Dr. Ramesh Kumar"} • Secure WhatsApp Call Ready',
-                            style: const TextStyle(color: Colors.white54, fontSize: 10),
+                            style: const TextStyle(
+                                color: Colors.white54, fontSize: 10),
                           ),
                         ],
                       ),
@@ -572,16 +659,21 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF25D366),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         icon: const Icon(Icons.video_call, size: 16),
                         label: const Text(
                           'WHATSAPP VC',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                         onPressed: () {
-                          ref.read(inspectionActionControllerProvider.notifier).startVideoCall(zone.id, 'Lead Auditor');
+                          ref
+                              .read(inspectionActionControllerProvider.notifier)
+                              .startVideoCall(zone.id, 'Lead Auditor');
                           WhatsAppCallService.startWhatsAppInspectionCall(
                             context: context,
                             zone: zone,
@@ -594,17 +686,23 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF7B2CBF),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
                         icon: const Icon(Icons.meeting_room, size: 15),
                         label: const Text(
                           'ROOM VC',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                         onPressed: () {
-                          ref.read(inspectionActionControllerProvider.notifier).startVideoCall(zone.id, 'Lead Auditor');
-                          final room = zone.activeRoomUrl ?? 'https://meet.jit.si/dosje_audit_${zone.id.replaceAll('-', '_')}';
+                          ref
+                              .read(inspectionActionControllerProvider.notifier)
+                              .startVideoCall(zone.id, 'Lead Auditor');
+                          final room = zone.activeRoomUrl ??
+                              'https://meet.jit.si/dosje_audit_${zone.id.replaceAll('-', '_')}';
                           Navigator.push(
                             context,
                             MaterialPageRoute(
@@ -615,7 +713,10 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                                 inchargeName: zone.inchargeName,
                                 inchargePhone: zone.inchargePhone,
                                 onCallEnded: () {
-                                  ref.read(inspectionActionControllerProvider.notifier).endVideoCall(zone.id);
+                                  ref
+                                      .read(inspectionActionControllerProvider
+                                          .notifier)
+                                      .endVideoCall(zone.id);
                                 },
                               ),
                             ),
@@ -625,30 +726,48 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                       const SizedBox(width: 8),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _isLiveWalkieTalkieActive ? Colors.redAccent : const Color(0xFF00B4D8),
+                          backgroundColor: _isLiveWalkieTalkieActive
+                              ? Colors.redAccent
+                              : const Color(0xFF00B4D8),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
-                        icon: Icon(_isLiveWalkieTalkieActive ? Icons.mic : Icons.podcasts, size: 14),
+                        icon: Icon(
+                            _isLiveWalkieTalkieActive
+                                ? Icons.mic
+                                : Icons.podcasts,
+                            size: 14),
                         label: Text(
                           _isLiveWalkieTalkieActive ? 'MIC ON' : 'WALKIE',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                         onPressed: _toggleLiveWalkieTalkie,
                       ),
                       const SizedBox(width: 8),
                       ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: _isTalkingToFacility ? Colors.redAccent : Colors.teal,
+                          backgroundColor: _isTalkingToFacility
+                              ? Colors.redAccent
+                              : Colors.teal,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 8),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8)),
                         ),
-                        icon: Icon(_isTalkingToFacility ? Icons.call_end : Icons.record_voice_over, size: 14),
+                        icon: Icon(
+                            _isTalkingToFacility
+                                ? Icons.call_end
+                                : Icons.record_voice_over,
+                            size: 14),
                         label: Text(
                           _isTalkingToFacility ? 'STOP' : 'TTS MSG',
-                          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              fontSize: 11, fontWeight: FontWeight.bold),
                         ),
                         onPressed: () => _toggleTalkback(zone.cctvStreamUrl),
                       ),
@@ -740,7 +859,8 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                   zone.isPersistentAnomaly
                       ? 'Attendance anomaly detected for 3 consecutive days. Trigger criteria met for surprise field inspection under DoSJE guidelines.'
                       : 'Temporary attendance fluctuation detected. Single-day spikes do not immediately trigger surprise inspections.',
-                  style: const TextStyle(color: Colors.white70, fontSize: 11, height: 1.4),
+                  style: const TextStyle(
+                      color: Colors.white70, fontSize: 11, height: 1.4),
                 ),
                 const SizedBox(height: 12),
                 Row(
@@ -749,7 +869,8 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                       Expanded(
                         child: Container(
                           margin: EdgeInsets.only(right: i < 2 ? 8 : 0),
-                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 8, horizontal: 8),
                           decoration: BoxDecoration(
                             color: const Color(0xFF090D12),
                             borderRadius: BorderRadius.circular(8),
@@ -760,16 +881,19 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                             children: [
                               Text(
                                 'Day ${i + 1} (YOLO)',
-                                style: const TextStyle(color: Colors.white38, fontSize: 10),
+                                style: const TextStyle(
+                                    color: Colors.white38, fontSize: 10),
                               ),
                               const SizedBox(height: 2),
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     '${zone.pastThreeDaysDetected[i]}',
                                     style: TextStyle(
-                                      color: zone.pastThreeDaysDetected[i] < zone.expectedCount
+                                      color: zone.pastThreeDaysDetected[i] <
+                                              zone.expectedCount
                                           ? Colors.redAccent
                                           : Colors.tealAccent,
                                       fontWeight: FontWeight.bold,
@@ -778,7 +902,8 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                                   ),
                                   Text(
                                     'exp: ${zone.expectedCount}',
-                                    style: const TextStyle(color: Colors.white54, fontSize: 10),
+                                    style: const TextStyle(
+                                        color: Colors.white54, fontSize: 10),
                                   ),
                                 ],
                               ),
@@ -806,12 +931,16 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
               children: [
                 Column(
                   children: [
-                    Text('Camera Uptime', style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                    Text('Camera Uptime',
+                        style: const TextStyle(
+                            color: Colors.white38, fontSize: 10)),
                     const SizedBox(height: 4),
                     Text(
                       '${zone.cameraUptimePercent.toStringAsFixed(1)}%',
                       style: GoogleFonts.outfit(
-                        color: zone.cameraUptimePercent >= 95 ? Colors.tealAccent : Colors.orangeAccent,
+                        color: zone.cameraUptimePercent >= 95
+                            ? Colors.tealAccent
+                            : Colors.orangeAccent,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -821,23 +950,30 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                 Container(height: 24, width: 1, color: const Color(0xFF26303D)),
                 Column(
                   children: [
-                    Text('Last Outage', style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                    Text('Last Outage',
+                        style: const TextStyle(
+                            color: Colors.white38, fontSize: 10)),
                     const SizedBox(height: 4),
                     Text(
                       zone.lastOutageWindow,
-                      style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12),
+                      style: GoogleFonts.outfit(
+                          color: Colors.white70, fontSize: 12),
                     ),
                   ],
                 ),
                 Container(height: 24, width: 1, color: const Color(0xFF26303D)),
                 Column(
                   children: [
-                    Text('Downtime Logged', style: const TextStyle(color: Colors.white38, fontSize: 10)),
+                    Text('Downtime Logged',
+                        style: const TextStyle(
+                            color: Colors.white38, fontSize: 10)),
                     const SizedBox(height: 4),
                     Text(
                       '${zone.totalDowntimeMinutes} min',
                       style: GoogleFonts.outfit(
-                        color: zone.totalDowntimeMinutes > 30 ? Colors.redAccent : Colors.cyanAccent,
+                        color: zone.totalDowntimeMinutes > 30
+                            ? Colors.redAccent
+                            : Colors.cyanAccent,
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
                       ),
@@ -862,20 +998,31 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.timer_outlined, color: Colors.orangeAccent, size: 18),
+                    const Icon(Icons.timer_outlined,
+                        color: Colors.orangeAccent, size: 18),
                     const SizedBox(width: 8),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Surprise Notice Policy', style: GoogleFonts.outfit(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                        Text('Current: ${zone.noticePolicy.toUpperCase()}', style: const TextStyle(color: Colors.white54, fontSize: 10)),
+                        Text('Surprise Notice Policy',
+                            style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold)),
+                        Text('Current: ${zone.noticePolicy.toUpperCase()}',
+                            style: const TextStyle(
+                                color: Colors.white54, fontSize: 10)),
                       ],
                     ),
                   ],
                 ),
                 DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
-                    value: const ['2_hours_surprise', 'immediate', '24h_routine'].contains(zone.noticePolicy)
+                    value: const [
+                      '2_hours_surprise',
+                      'immediate',
+                      '24h_routine'
+                    ].contains(zone.noticePolicy)
                         ? zone.noticePolicy
                         : '2_hours_surprise',
                     dropdownColor: const Color(0xFF131920),
@@ -883,24 +1030,31 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                       DropdownMenuItem(
                         value: '2_hours_surprise',
                         child: Text('2h Advance (Surprise)',
-                            style: TextStyle(color: Colors.orangeAccent, fontSize: 11)),
+                            style: TextStyle(
+                                color: Colors.orangeAccent, fontSize: 11)),
                       ),
                       DropdownMenuItem(
                         value: 'immediate',
                         child: Text('Immediate (No Notice)',
-                            style: TextStyle(color: Colors.redAccent, fontSize: 11)),
+                            style: TextStyle(
+                                color: Colors.redAccent, fontSize: 11)),
                       ),
                       DropdownMenuItem(
                         value: '24h_routine',
                         child: Text('24h (Routine)',
-                            style: TextStyle(color: Colors.tealAccent, fontSize: 11)),
+                            style: TextStyle(
+                                color: Colors.tealAccent, fontSize: 11)),
                       ),
                     ],
                     onChanged: (val) {
                       if (val != null) {
-                        ref.read(inspectionActionControllerProvider.notifier).updateNoticePolicy(zone.id, val);
+                        ref
+                            .read(inspectionActionControllerProvider.notifier)
+                            .updateNoticePolicy(zone.id, val);
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Notice policy updated to $val'), backgroundColor: Colors.teal),
+                          SnackBar(
+                              content: Text('Notice policy updated to $val'),
+                              backgroundColor: Colors.teal),
                         );
                       }
                     },
@@ -910,177 +1064,145 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
             ),
           ),
 
-          // Human-in-the-Loop Manual Verification & Audit Form
+          // AI-Generated Anomaly Intelligence Analysis & Critical Root-Cause Breakdown
           Padding(
             padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Human-in-the-Loop Decision Matrix',
-                      style: GoogleFonts.outfit(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF131920),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFF26303D)),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF131920),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: (zone.discrepancy > 5 || !zone.isCameraOnline)
+                      ? Colors.redAccent.withValues(alpha: 0.6)
+                      : const Color(0xFF26303D),
+                  width: (zone.discrepancy > 5 || !zone.isCameraOnline)
+                      ? 1.5
+                      : 1.0,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.redAccent.withValues(alpha: 0.15),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.psychology_outlined,
+                                color: Colors.redAccent, size: 20),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'AI-Generated Anomaly Analysis',
+                            style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: 14,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
-                      child: Text(
-                        zone.floor,
-                        style: GoogleFonts.inter(color: Colors.cyanAccent, fontSize: 11),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: (zone.discrepancy > 5 || !zone.isCameraOnline)
+                              ? Colors.redAccent.withValues(alpha: 0.2)
+                              : Colors.teal.withValues(alpha: 0.2),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(
+                            color:
+                                (zone.discrepancy > 5 || !zone.isCameraOnline)
+                                    ? Colors.redAccent
+                                    : Colors.tealAccent,
+                          ),
+                        ),
+                        child: Text(
+                          (zone.discrepancy > 5 || !zone.isCameraOnline)
+                              ? 'CRITICAL SEVERITY'
+                              : 'NORMAL COMPLIANCE',
+                          style: TextStyle(
+                            color:
+                                (zone.discrepancy > 5 || !zone.isCameraOnline)
+                                    ? Colors.redAccent
+                                    : Colors.tealAccent,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _manualCountController,
-                  keyboardType: TextInputType.number,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Physical Headcount / Register Cross-Check',
-                    labelStyle: const TextStyle(color: Colors.white60),
-                    prefixIcon: const Icon(Icons.pin, color: Colors.cyanAccent),
-                    hintText: 'e.g. ${zone.expectedCount}',
-                    hintStyle: const TextStyle(color: Colors.white24),
-                    filled: true,
-                    fillColor: const Color(0xFF131920),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFF26303D)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.cyanAccent),
-                    ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _findingsController,
-                  maxLines: 2,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: InputDecoration(
-                    labelText: 'Auditor Intelligence Notes & Verification Reason',
-                    labelStyle: const TextStyle(color: Colors.white60),
-                    prefixIcon: const Icon(Icons.notes, color: Colors.cyanAccent),
-                    hintText: 'e.g. Verified camera field-of-view; outdoor training batch accounted for...',
-                    hintStyle: const TextStyle(color: Colors.white24),
-                    filled: true,
-                    fillColor: const Color(0xFF131920),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFF26303D)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Colors.cyanAccent),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
+                  const SizedBox(height: 12),
 
-                // 3 Decision Buttons
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.close, size: 14, color: Colors.white70),
-                        label: const Text('False Alarm', style: TextStyle(color: Colors.white70, fontSize: 11)),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.white24),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                        ),
-                        onPressed: () async {
-                          await ref.read(inspectionActionControllerProvider.notifier).verifyManualAnomaly(
-                                zoneId: zone.id,
-                                decision: 'false_alarm',
-                                reason: _findingsController.text.isNotEmpty ? _findingsController.text : 'Marked as false alarm by auditor',
-                              );
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Marked as False Alarm. Risk reset.'), backgroundColor: Colors.blueGrey),
-                            );
-                            Navigator.pop(context);
-                          }
-                        },
-                      ),
+                  // AI Root-Cause Diagnostic Summary
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF090D12),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: Colors.white10),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        icon: const Icon(Icons.visibility, size: 14, color: Colors.orangeAccent),
-                        label: const Text('Keep Watch', style: TextStyle(color: Colors.orangeAccent, fontSize: 11)),
-                        style: OutlinedButton.styleFrom(
-                          side: const BorderSide(color: Colors.orangeAccent),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '🤖 ROOT-CAUSE INFERENCE ENGINE',
+                          style: TextStyle(
+                              color: Colors.cyanAccent,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold),
                         ),
-                        onPressed: () async {
-                          await ref.read(inspectionActionControllerProvider.notifier).verifyManualAnomaly(
-                                zoneId: zone.id,
-                                decision: 'continue_monitoring',
-                                reason: _findingsController.text.isNotEmpty ? _findingsController.text : 'Continued monitoring ordered',
-                              );
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Monitoring window extended.'), backgroundColor: Colors.orangeAccent),
-                            );
-                            Navigator.pop(context);
-                          }
-                        },
-                      ),
+                        const SizedBox(height: 6),
+                        Text(
+                          !zone.isCameraOnline
+                              ? '• HARDWARE TAMPER CRITICAL: Camera sensor disconnected / stream offline for over ${zone.totalDowntimeMinutes} minutes.\n• Automated failover triggered inspection protocol.'
+                              : '• GHOST ATTENDANCE DEFICIT: Biometric turnstile register recorded ${zone.expectedCount} entries, but YOLO vision model detected only ${zone.detectedCount} live occupants (${zone.expectedCount - zone.detectedCount} ghost discrepancy).\n• 3-DAY PERSISTENCE: Discrepancy pattern persisted across ${zone.persistentAnomalyDays} consecutive monitoring cycles.\n• GEOFENCE INTEGRITY: Statutory inspection required to confirm physical presence within 200m facility radius.',
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 12, height: 1.5),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.local_police_outlined, size: 18),
-                  label: const Text('GENERATE SURPRISE INSPECTION (2H NOTICE)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.redAccent.shade700,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  onPressed: () async {
-                    final manualCount = int.tryParse(_manualCountController.text) ?? zone.detectedCount;
-                    await ref.read(inspectionActionControllerProvider.notifier).verifyManualAnomaly(
-                          zoneId: zone.id,
-                          decision: 'generate_surprise_inspection',
-                          reason: _findingsController.text.isNotEmpty ? _findingsController.text : '3-Day persistent anomaly triggered surprise inspection.',
-                        );
-                    await ref.read(inspectionActionControllerProvider.notifier).submitInspectionLog(
-                          zoneId: zone.id,
-                          findings: 'SURPRISE INSPECTION GENERATED: 3-day persistent anomaly. ${_findingsController.text}',
-                          manualCountVerified: manualCount,
-                          status: 'escalated',
-                        );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('🚨 Surprise Inspection Order Generated & Dispatched to Field PMU!'),
-                          backgroundColor: Colors.redAccent,
-                        ),
-                      );
-                      Navigator.pop(context);
-                    }
-                  },
-                ),
-              ],
+
+                  const SizedBox(height: 14),
+
+                  // Inspector Audit Dossier & JSON Access Strip
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0077B6),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8)),
+                    ),
+                    icon: const Icon(Icons.description_outlined, size: 18),
+                    label: const Text(
+                      'VIEW INSPECTOR AUDIT REPORT & JSON DOSSIER',
+                      style: TextStyle(
+                          fontSize: 11.5, fontWeight: FontWeight.bold),
+                    ),
+                    onPressed: () =>
+                        _showInspectorReportDialog(context, zone.id),
+                  ),
+                ],
+              ),
             ),
-          )
+          ),
         ],
       ),
     );
   }
 
   Widget _buildSimulatedLiveFeed(ZoneModel zone) {
-    final streamUrl = zone.cctvStreamUrl.startsWith('http') ? zone.cctvStreamUrl : null;
+    final streamUrl =
+        zone.cctvStreamUrl.startsWith('http') ? zone.cctvStreamUrl : null;
 
     return Container(
       decoration: BoxDecoration(
@@ -1119,7 +1241,8 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
                 const SizedBox(width: 6),
                 Text(
                   'LIVE CCTV • 1080P 30FPS',
-                  style: GoogleFonts.outfit(color: Colors.white70, fontSize: 10, letterSpacing: 1),
+                  style: GoogleFonts.outfit(
+                      color: Colors.white70, fontSize: 10, letterSpacing: 1),
                 ),
               ],
             ),
@@ -1130,14 +1253,16 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
   }
 
   void _showStreamUrlDialog(BuildContext context, String zoneId) {
-    final textController = TextEditingController(text: 'http://127.0.0.1:8088/stream');
+    final textController =
+        TextEditingController(text: 'http://127.0.0.1:8088/stream');
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF131920),
         title: Text(
           'Connect Phone Camera Stream',
-          style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          style: GoogleFonts.outfit(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -1150,29 +1275,36 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
             const SizedBox(height: 12),
             TextField(
               controller: textController,
-              style: const TextStyle(color: Colors.cyanAccent, fontFamily: 'monospace'),
+              style: const TextStyle(
+                  color: Colors.cyanAccent, fontFamily: 'monospace'),
               decoration: InputDecoration(
                 hintText: 'http://<phone-ip>:8088/stream',
                 hintStyle: const TextStyle(color: Colors.white24),
                 filled: true,
                 fillColor: const Color(0xFF1E2630),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               ),
             ),
           ],
         ),
         actions: [
           TextButton(
-            child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
+            child:
+                const Text('Cancel', style: TextStyle(color: Colors.white54)),
             onPressed: () => Navigator.pop(ctx),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.cyanAccent, foregroundColor: Colors.black),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.cyanAccent,
+                foregroundColor: Colors.black),
             child: const Text('Connect'),
             onPressed: () {
               final url = textController.text.trim();
               if (url.isNotEmpty) {
-                ref.read(inspectionActionControllerProvider.notifier).setStreamUrl(zoneId, url);
+                ref
+                    .read(inspectionActionControllerProvider.notifier)
+                    .setStreamUrl(zoneId, url);
               }
               Navigator.pop(ctx);
             },
@@ -1258,16 +1390,23 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
       var targetUri = Uri.parse(url);
       http.Response? res;
       try {
-        res = await _httpClient.get(targetUri).timeout(const Duration(milliseconds: 1200));
+        res = await _httpClient
+            .get(targetUri)
+            .timeout(const Duration(milliseconds: 1200));
       } catch (_) {
         // If 127.0.0.1 is unreachable inside the Android emulator, automatically try the 10.0.2.2 gateway
         if (url.contains('127.0.0.1')) {
           final emulatorGatewayUrl = url.replaceAll('127.0.0.1', '10.0.2.2');
-          res = await _httpClient.get(Uri.parse(emulatorGatewayUrl)).timeout(const Duration(milliseconds: 1200));
+          res = await _httpClient
+              .get(Uri.parse(emulatorGatewayUrl))
+              .timeout(const Duration(milliseconds: 1200));
         }
       }
       final response = res;
-      if (response != null && response.statusCode == 200 && mounted && response.bodyBytes.isNotEmpty) {
+      if (response != null &&
+          response.statusCode == 200 &&
+          mounted &&
+          response.bodyBytes.isNotEmpty) {
         setState(() {
           _frameBytes = response.bodyBytes;
         });
@@ -1308,6 +1447,334 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
           ),
         ],
       ),
+    );
+  }
+}
+
+extension _InspectorReportModal on _LiveInspectionScreenState {
+  void _showInspectorReportDialog(BuildContext context, String zoneId) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF0C131D),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        return Consumer(
+          builder: (context, ref, _) {
+            final inspectionsAsync = ref.watch(recentInspectionsStreamProvider);
+
+            return Container(
+              padding: const EdgeInsets.all(20),
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
+              ),
+              child: inspectionsAsync.when(
+                data: (list) {
+                  // Filter inspections for this zone if any, or show all statutory dossiers
+                  final zoneInspections =
+                      list.where((i) => i.zoneId == zoneId).toList();
+                  final dossier = zoneInspections.isNotEmpty
+                      ? zoneInspections.first
+                      : (list.isNotEmpty ? list.first : null);
+
+                  if (dossier == null) {
+                    return Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.folder_open_rounded,
+                            size: 48, color: Colors.white30),
+                        const SizedBox(height: 12),
+                        Text('No Field Inspector Report Logged Yet',
+                            style: GoogleFonts.outfit(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 6),
+                        const Text(
+                          'The field inspector has not yet submitted a statutory physical inspection dossier for this facility. When submitted via the Inspector Mobile App, the JSON dossier and photos will synchronize here automatically.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.white54, fontSize: 12),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF26303D)),
+                          child: const Text('CLOSE'),
+                        ),
+                      ],
+                    );
+                  }
+
+                  final jsonPretty = const JsonEncoder.withIndent('  ')
+                      .convert(dossier.toJson());
+
+                  return SingleChildScrollView(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(Icons.verified_outlined,
+                                    color: Colors.tealAccent, size: 22),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'STATUTORY AUDIT DOSSIER',
+                                  style: GoogleFonts.outfit(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: Colors.teal.withValues(alpha: 0.2),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: Colors.tealAccent),
+                              ),
+                              child: const Text('APPWRITE SYNCED',
+                                  style: TextStyle(
+                                      color: Colors.tealAccent,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          'Dossier ID: ${dossier.id.substring(0, 8)}... • Auditor: ${dossier.inspectorName}',
+                          style: const TextStyle(
+                              color: Colors.white54, fontSize: 11),
+                        ),
+                        Text(
+                          'Timestamp: ${DateFormat("dd MMM yyyy, HH:mm:ss").format(dossier.timestamp)} (Verified)',
+                          style: const TextStyle(
+                              color: Colors.white54, fontSize: 11),
+                        ),
+                        const Divider(color: Colors.white12, height: 20),
+
+                        // GPS Verification & Verdict
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                    color: const Color(0xFF131920),
+                                    borderRadius: BorderRadius.circular(8)),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('GPS TAMPER PROOF',
+                                        style: TextStyle(
+                                            color: Colors.cyanAccent,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      dossier.gpsVerified
+                                          ? 'VERIFIED (Within 200m)'
+                                          : 'OVERRIDE LOGGED',
+                                      style: TextStyle(
+                                          color: dossier.gpsVerified
+                                              ? Colors.greenAccent
+                                              : Colors.amber,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11),
+                                    ),
+                                    Text(
+                                      dossier.geoTagLocation ??
+                                          'GPS: 28.6692°N, 77.4538°E',
+                                      style: const TextStyle(
+                                          color: Colors.white60,
+                                          fontSize: 9,
+                                          fontFamily: 'monospace'),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: dossier.verdict == 'COMPLIANT'
+                                      ? Colors.teal.withValues(alpha: 0.15)
+                                      : Colors.red.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                      color: dossier.verdict == 'COMPLIANT'
+                                          ? Colors.tealAccent
+                                          : Colors.redAccent),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Text('FINAL VERDICT',
+                                        style: TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold)),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      dossier.verdict,
+                                      style: TextStyle(
+                                          color: dossier.verdict == 'COMPLIANT'
+                                              ? Colors.tealAccent
+                                              : Colors.redAccent,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12),
+                                    ),
+                                    Text(
+                                        'Compliance: ${dossier.compliancePercent}%',
+                                        style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 10)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
+                        const SizedBox(height: 14),
+
+                        // Site Geotag Photo Display
+                        if (dossier.sitePhotoPath != null) ...[
+                          const Text('SITE GEOTAG EVIDENCE PHOTO',
+                              style: TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 6),
+                          Container(
+                            height: 160,
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                  color:
+                                      Colors.tealAccent.withValues(alpha: 0.4)),
+                              image: DecorationImage(
+                                image: FileImage(File(dossier.sitePhotoPath!)),
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+
+                        // Per-Checklist Item Photos
+                        if (dossier.checklistPhotos != null &&
+                            dossier.checklistPhotos!.isNotEmpty) ...[
+                          Text(
+                              'STATUTORY CHECKLIST PHOTO EVIDENCE (${dossier.checklistPhotos!.length} ITEMS)',
+                              style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 8),
+                          SizedBox(
+                            height: 100,
+                            child: ListView(
+                              scrollDirection: Axis.horizontal,
+                              children:
+                                  dossier.checklistPhotos!.entries.map((item) {
+                                return Container(
+                                  width: 100,
+                                  margin: const EdgeInsets.only(right: 8),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF131920),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: Colors.cyanAccent
+                                            .withValues(alpha: 0.5)),
+                                    image: DecorationImage(
+                                      image: FileImage(File(item.value)),
+                                      fit: BoxFit.cover,
+                                    ),
+                                  ),
+                                  child: Align(
+                                    alignment: Alignment.bottomCenter,
+                                    child: Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.all(2),
+                                      color: Colors.black87,
+                                      child: Text(
+                                        item.key,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(
+                                            color: Colors.white, fontSize: 8),
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                        ],
+
+                        // Full JSON File Export Viewer
+                        const Text(
+                            'SAVED JSON DOSSIER PAYLOAD (APPWRITE COMPATIBLE)',
+                            style: TextStyle(
+                                color: Colors.cyanAccent,
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 6),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.black87,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF26303D)),
+                          ),
+                          child: Text(
+                            jsonPretty,
+                            style: const TextStyle(
+                                color: Colors.tealAccent,
+                                fontSize: 10,
+                                fontFamily: 'monospace'),
+                          ),
+                        ),
+
+                        const SizedBox(height: 14),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF1A2634)),
+                            onPressed: () => Navigator.pop(ctx),
+                            child: const Text('DISMISS DOSSIER',
+                                style: TextStyle(color: Colors.white)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+                loading: () => const Center(
+                    child: CircularProgressIndicator(color: Colors.cyanAccent)),
+                error: (e, _) => Center(
+                    child: Text('Error: $e',
+                        style: const TextStyle(color: Colors.redAccent))),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }
