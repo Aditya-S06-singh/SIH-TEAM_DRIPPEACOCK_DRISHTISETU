@@ -92,14 +92,7 @@ DOCUMENT_ID = "6a9bd5200029250fea89"
 last_appwrite_sync = 0
 gate_expected_count = 23  # Synced gate turnstile baseline
 
-def sync_to_appwrite(headcount):
-    global last_appwrite_sync
-    curr = time.time()
-    # Sync every 2 seconds
-    if curr - last_appwrite_sync < 2.0:
-        return
-    last_appwrite_sync = curr
-
+def _async_appwrite_worker(headcount):
     discrepancy = gate_expected_count - headcount
     severity = "critical" if discrepancy > 5 else ("warning" if discrepancy > 0 else "normal")
 
@@ -129,6 +122,15 @@ def sync_to_appwrite(headcount):
             pass
     except Exception:
         pass
+
+def sync_to_appwrite(headcount):
+    global last_appwrite_sync
+    curr = time.time()
+    # Sync at most once every 3 seconds in the background
+    if curr - last_appwrite_sync < 3.0:
+        return
+    last_appwrite_sync = curr
+    threading.Thread(target=_async_appwrite_worker, args=(headcount,), daemon=True).start()
 
 def RGB(event, x, y, flags, param):
     if event == cv2.EVENT_MOUSEMOVE:
