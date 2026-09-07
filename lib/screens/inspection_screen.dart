@@ -146,9 +146,9 @@ class _LiveInspectionScreenState extends ConsumerState<LiveInspectionScreen>
     final path = newState ? '/mic/start' : '/mic/stop';
     bool success = false;
 
-    for (final host in ['http://10.0.2.2:8092', 'http://127.0.0.1:8092', 'http://192.168.1.4:8092']) {
+    for (final host in ['http://10.0.2.2:8092', 'http://127.0.0.1:8092', 'http://192.168.1.4:8092', 'http://192.168.1.2:8092']) {
       try {
-        final res = await http.post(Uri.parse('$host$path')).timeout(const Duration(milliseconds: 700));
+        final res = await http.post(Uri.parse('$host$path')).timeout(const Duration(milliseconds: 1500));
         if (res.statusCode == 200) {
           success = true;
           break;
@@ -1245,8 +1245,8 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
     // Fetch initial frame immediately
     _fetchSnapshot(snapshotUrl);
 
-    // Highly optimized ~5-6 FPS polling interval (180ms) with in-flight guard to keep Flutter UI at smooth 60 FPS
-    _poller = Timer.periodic(const Duration(milliseconds: 180), (_) {
+    // High-performance polling interval (~11-12 FPS) with in-flight guard to keep Flutter UI responsive
+    _poller = Timer.periodic(const Duration(milliseconds: 90), (_) {
       _fetchSnapshot(snapshotUrl);
     });
   }
@@ -1258,12 +1258,12 @@ class _LiveMjpegStreamViewerState extends State<LiveMjpegStreamViewer> {
       var targetUri = Uri.parse(url);
       http.Response? res;
       try {
-        res = await _httpClient.get(targetUri).timeout(const Duration(milliseconds: 350));
+        res = await _httpClient.get(targetUri).timeout(const Duration(milliseconds: 1200));
       } catch (_) {
         // If 127.0.0.1 is unreachable inside the Android emulator, automatically try the 10.0.2.2 gateway
         if (url.contains('127.0.0.1')) {
           final emulatorGatewayUrl = url.replaceAll('127.0.0.1', '10.0.2.2');
-          res = await _httpClient.get(Uri.parse(emulatorGatewayUrl)).timeout(const Duration(milliseconds: 350));
+          res = await _httpClient.get(Uri.parse(emulatorGatewayUrl)).timeout(const Duration(milliseconds: 1200));
         }
       }
       final response = res;

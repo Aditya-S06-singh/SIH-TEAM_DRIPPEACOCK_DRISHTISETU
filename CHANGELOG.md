@@ -5,6 +5,23 @@ All notable changes to the **DrishtiSetu** (Attendance & Surveillance Sentinel) 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.2.1] - 2026-09-07 (version-5.2.1)
+
+### Improved & Fixed
+- **High-FPS Live Video Streaming Engine**:
+  - Optimized camera node snapshot capture interval from 250ms down to 80ms (~12–15 FPS) for smooth live streaming.
+  - Accelerated Inspector polling to 90ms with resilient 1200ms in-flight network timeout guard.
+  - Implemented 3x frame-skipping and bounding box tracking interpolation in `yolo_camera_counter.py` for ultra-high FPS.
+- **Real-Time Walkie-Talkie & Speakerphone Audio Boost**:
+  - Switched Android native `AudioTrack` output to `USAGE_MEDIA` / `STREAM_MUSIC` with programmatic max-volume loudspeaker boost.
+  - Upgraded native audio buffer to 16,384 bytes to eliminate crackles, packet underruns, and speech dropouts.
+  - Added auto-active mic streaming and persistent multi-endpoint transmission in `live_mic_intercom.py`.
+- **YOLO & Stream Resilience**:
+  - Fixed OpenCV `VideoCapture` TCP socket failure on HTTP streams.
+  - Resolved `NoneType` release exception on clean script termination.
+
+---
+
 ## [4.0.0] - 2026-09-06 (version-4.0)
 
 ### Added

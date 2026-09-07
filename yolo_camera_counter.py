@@ -153,19 +153,24 @@ if len(sys.argv) > 1 and sys.argv[1].strip():
 elif os.environ.get("PHONE_STREAM_URL"):
     source = os.environ.get("PHONE_STREAM_URL").strip()
 
-if source.isdigit():
+is_http_source = str(source).startswith("http")
+snapshot_url = str(source).replace("/stream", "/snapshot") if is_http_source else None
+
+if is_http_source:
+    print(f"Connecting to Wireless Phone Camera HTTP feed: {snapshot_url} ...")
+    cap = None
+elif source.isdigit():
     source = int(source)
     print(f"Connecting to local Camera Source ({source})...")
     cap = cv2.VideoCapture(source, cv2.CAP_DSHOW)
     if not cap.isOpened():
         cap = cv2.VideoCapture(source)
 else:
-    print(f"Connecting to Wireless Phone Camera: {source} ...")
+    print(f"Connecting to Camera Source: {source} ...")
     cap = cv2.VideoCapture(source)
-
-if not cap.isOpened():
-    print(f"Could not connect to {source}. Falling back to default webcam (0)...")
-    cap = cv2.VideoCapture(0)
+    if not cap.isOpened():
+        print(f"Could not connect to {source}. Falling back to default webcam (0)...")
+        cap = cv2.VideoCapture(0)
 
 SAVE_INTERVAL = 600
 last_save_time = time.time()
@@ -177,9 +182,6 @@ prev_time = time.time()
 fps = 0
 cached_boxes = []     # Store detections between skipped frames
 people_count = 0
-
-is_http_source = str(source).startswith("http")
-snapshot_url = str(source).replace("/stream", "/snapshot") if is_http_source else None
 
 print("Camera feed active. Press 'q' in the camera window to exit.")
 
@@ -206,23 +208,23 @@ while True:
     # Resize input frame to standard (1020, 600)
     frame = cv2.resize(frame, (1020, 600))
 
-    # Track only persons (COCO class 0)
-    results = model.track(frame, persist=True, classes=[0], verbose=False)
+    # Run YOLO inference every (SKIP_FRAMES + 1) frames to multiply FPS
+    if frame_idx % (SKIP_FRAMES + 1) == 0:
+        results = model.track(frame, persist=True, classes=[0], verbose=False)
+        if results[0].boxes is not None and results[0].boxes.id is not None:
+            boxes = results[0].boxes.xyxy.int().cpu().tolist()
+            track_ids = results[0].boxes.id.int().cpu().tolist()
+            cached_boxes = list(zip(boxes, track_ids))
+            people_count = len(boxes)
+        else:
+            cached_boxes = []
+            people_count = 0
+        sync_to_appwrite(people_count)
 
-    # Check if there are tracked boxes
-    if results[0].boxes is not None and results[0].boxes.id is not None:
-        boxes = results[0].boxes.xyxy.int().cpu().tolist()
-        track_ids = results[0].boxes.id.int().cpu().tolist()
-        people_count = len(boxes)
-
-        for box, track_id in zip(boxes, track_ids):
-            x1, y1, x2, y2 = box
-            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
-            cvzone.putTextRect(frame, f'ID: {track_id}', (x1, max(30, y1)), 1, 1)
-    else:
-        people_count = 0
-
-    sync_to_appwrite(people_count)
+    for box, track_id in cached_boxes:
+        x1, y1, x2, y2 = box
+        cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 0, 255), 2)
+        cvzone.putTextRect(frame, f'ID: {track_id}', (x1, max(30, y1)), 1, 1)
 
     # Calculate actual display FPS
     curr_time = time.time()
@@ -252,5 +254,6 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
-cap.release()
+if cap is not None:
+    cap.release()
 cv2.destroyAllWindows()

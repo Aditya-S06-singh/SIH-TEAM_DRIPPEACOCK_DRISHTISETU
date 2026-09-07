@@ -16,21 +16,31 @@ import queue
 
 SAMPLE_RATE = 16000
 CHANNELS = 1
-BLOCK_SIZE = 1024  # ~64ms low latency chunks
+BLOCK_SIZE = 3200  # ~200ms audio chunks: optimal balance between low-latency & underrun protection
 AUDIO_ENDPOINTS = [
     "http://127.0.0.1:8088/audio/raw",
     "http://192.168.1.2:8088/audio/raw"
 ]
 
-is_streaming_active = False
+is_streaming_active = True
 mic_stream = None
-audio_queue = queue.Queue(maxsize=10)
+audio_queue = queue.Queue(maxsize=15)
+active_endpoint = None
 
 def _persistent_audio_sender():
+    global active_endpoint
+    print("[Audio Sender] Background audio sender worker running.")
+    last_print = 0
     while True:
         try:
             data_bytes = audio_queue.get()
-            for url in AUDIO_ENDPOINTS:
+            endpoints_to_try = [active_endpoint] if active_endpoint else []
+            endpoints_to_try += [ep for ep in AUDIO_ENDPOINTS if ep != active_endpoint]
+
+            delivered = False
+            for url in endpoints_to_try:
+                if not url:
+                    continue
                 try:
                     req = urllib.request.Request(
                         url,
@@ -38,9 +48,16 @@ def _persistent_audio_sender():
                         headers={'Content-Type': 'application/octet-stream'},
                         method='POST'
                     )
-                    with urllib.request.urlopen(req, timeout=0.25):
+                    with urllib.request.urlopen(req, timeout=0.35):
+                        active_endpoint = url
+                        delivered = True
+                        if time.time() - last_print > 3.0:
+                            print(f"[Walkie-Talkie] Audio packet delivered to -> {url}")
+                            last_print = time.time()
                         break
-                except Exception:
+                except Exception as ex:
+                    if url == active_endpoint:
+                        active_endpoint = None
                     continue
         except Exception:
             pass
@@ -62,7 +79,7 @@ def audio_callback(indata, frames, time_info, status):
 
 class MicControlServer(BaseHTTPRequestHandler):
     def do_POST(self):
-        global is_streaming_active, target_node_url
+        global is_streaming_active
         if self.path == '/mic/start':
             is_streaming_active = True
             print("[Walkie-Talkie] LIVE LAPTOP MIC STREAMING STARTED -> Phone Loudspeaker Active!")

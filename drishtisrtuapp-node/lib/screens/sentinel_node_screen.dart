@@ -101,8 +101,8 @@ class _SentinelNodeScreenState extends State<SentinelNodeScreen> {
 
   void _startFrameStreamingLoop() {
     _frameStreamTimer?.cancel();
-    // Non-blocking smooth 1000ms frame capture loop to keep UI thread at 60 FPS
-    _frameStreamTimer = Timer.periodic(const Duration(milliseconds: 1000), (_) async {
+    // High-performance adaptive frame capture loop (~12-15 FPS) for responsive live video streaming
+    _frameStreamTimer = Timer.periodic(const Duration(milliseconds: 80), (_) async {
       if (!_isCameraReady || _cameraController == null || _isCapturingFrame) return;
       if (!mounted) return;
       _isCapturingFrame = true;
