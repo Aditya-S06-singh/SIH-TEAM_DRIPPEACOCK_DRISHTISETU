@@ -5,6 +5,21 @@ All notable changes to the **DrishtiSetu** (Attendance & Surveillance Sentinel) 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.3.0] - 2026-09-07 (version-5.3)
+
+### Added & Enhanced
+- **Per-Checklist Item Photo Verification**:
+  - Replaced legacy standalone "Confirmed Details Photo Evidence" container with dynamic per-item camera evidence tiles.
+  - Every checked statutory compliance requirement now includes an inline camera attachment widget with real-time thumbnail preview, retake options, and status alerts.
+- **Strict Anti-Spoof & Mandatory Photo Enforcement**:
+  - Requires at least 1 photo verification proof under every ticked checklist requirement prior to submission.
+  - Generates validation popups detailing missing photo items if submitted prematurely.
+- **Comprehensive JSON Dossier Export & Appwrite Cloud Synchronization**:
+  - Automatically packages the complete statutory dossier (timestamp, hard-stamped GPS coordinates, per-item photo evidence base64 strings, headcount discrepancy tallies, and audit hash) into a structured JSON file.
+  - Saves locally (`latest_inspection_dossier_<id>.json`) and pushes directly to Appwrite Cloud (`drishtisetu_db` -> `zones`) for AI inspection authenticity verification.
+
+---
+
 ## [5.2.3] - 2026-09-07 (version-5.2.3)
 
 ### Fixed & Optimized

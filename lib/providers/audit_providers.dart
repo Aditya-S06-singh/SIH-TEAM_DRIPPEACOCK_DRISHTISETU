@@ -223,6 +223,7 @@ class SentinelDataRepository {
     String? sitePhotoPath,
     String? detailsPhotoPath,
     String? geoTagLocation,
+    Map<String, String>? checklistPhotos,
   }) {
     final inspectionId = const Uuid().v4();
     final idx = _zones.indexWhere((z) => z.id == zoneId);
@@ -258,18 +259,37 @@ class SentinelDataRepository {
       sitePhotoPath: sitePhotoPath,
       detailsPhotoPath: detailsPhotoPath,
       geoTagLocation: geoTagLocation,
+      checklistPhotos: checklistPhotos,
     );
     _inspections.insert(0, inspection);
 
     // Save permanently in local device storage
     _saveInspectionsLocally();
 
-    // Push updated telemetry to Appwrite database
+    // Export entire dossier with all checklist photos & geotags to a standalone JSON file
+    String? exportedJsonString;
+    try {
+      final jsonMap = inspection.toJson();
+      exportedJsonString = jsonEncode(jsonMap);
+      // Persist latest JSON file locally for offline / audit export
+      SharedPreferences.getInstance().then((prefs) {
+        prefs.setString('latest_inspection_dossier_${inspection.id}.json', exportedJsonString!);
+      });
+    } catch (_) {}
+
+    // Push updated telemetry and statutory photo/geotag evidence to Appwrite database for AI verification
     _appwritePoller.updateZoneInDatabase(
       zoneId: zoneId,
       expectedCount: reported,
       detectedCount: manualCountVerified,
       isCameraOnline: currentZone?.isCameraOnline ?? true,
+      sitePhotoPath: sitePhotoPath,
+      detailsPhotoPath: detailsPhotoPath,
+      geoTagLocation: geoTagLocation,
+      verdict: inspection.verdict,
+      findings: findings,
+      checklistPhotos: checklistPhotos,
+      fullDossierJson: exportedJsonString,
     );
 
     if (idx != -1) {
@@ -531,6 +551,7 @@ class InspectionActionController extends StateNotifier<AsyncValue<void>> {
     String? sitePhotoPath,
     String? detailsPhotoPath,
     String? geoTagLocation,
+    Map<String, String>? checklistPhotos,
   }) async {
     state = const AsyncValue.loading();
     await Future.delayed(const Duration(milliseconds: 300));
@@ -545,6 +566,7 @@ class InspectionActionController extends StateNotifier<AsyncValue<void>> {
       sitePhotoPath: sitePhotoPath,
       detailsPhotoPath: detailsPhotoPath,
       geoTagLocation: geoTagLocation,
+      checklistPhotos: checklistPhotos,
     );
     state = const AsyncValue.data(null);
   }

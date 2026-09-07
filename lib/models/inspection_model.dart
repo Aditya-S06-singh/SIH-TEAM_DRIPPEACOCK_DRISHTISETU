@@ -25,6 +25,7 @@ class InspectionModel {
   final String? sitePhotoPath; // Geotagged site inspection photo
   final String? detailsPhotoPath; // Photo of confirmed checklist/register details
   final String? geoTagLocation; // Formatted lat, long & address
+  final Map<String, String>? checklistPhotos; // Photos attached per checklist requirement
 
   const InspectionModel({
     required this.id,
@@ -50,6 +51,7 @@ class InspectionModel {
     this.sitePhotoPath,
     this.detailsPhotoPath,
     this.geoTagLocation,
+    this.checklistPhotos,
   });
 
   InspectionModel copyWith({
@@ -76,6 +78,7 @@ class InspectionModel {
     String? sitePhotoPath,
     String? detailsPhotoPath,
     String? geoTagLocation,
+    Map<String, String>? checklistPhotos,
   }) {
     return InspectionModel(
       id: id ?? this.id,
@@ -101,6 +104,7 @@ class InspectionModel {
       sitePhotoPath: sitePhotoPath ?? this.sitePhotoPath,
       detailsPhotoPath: detailsPhotoPath ?? this.detailsPhotoPath,
       geoTagLocation: geoTagLocation ?? this.geoTagLocation,
+      checklistPhotos: checklistPhotos ?? this.checklistPhotos,
     );
   }
 
@@ -109,6 +113,13 @@ class InspectionModel {
       if (val is DateTime) return val;
       if (val is String) return DateTime.tryParse(val) ?? DateTime.now();
       return DateTime.now();
+    }
+
+    Map<String, String>? parseChecklistPhotos(dynamic val) {
+      if (val is Map) {
+        return val.map((k, v) => MapEntry(k.toString(), v.toString()));
+      }
+      return null;
     }
 
     return InspectionModel(
@@ -135,6 +146,7 @@ class InspectionModel {
       sitePhotoPath: json['sitePhotoPath'] as String?,
       detailsPhotoPath: json['detailsPhotoPath'] as String?,
       geoTagLocation: json['geoTagLocation'] as String?,
+      checklistPhotos: parseChecklistPhotos(json['checklistPhotos']),
     );
   }
 
@@ -163,6 +175,7 @@ class InspectionModel {
       'sitePhotoPath': sitePhotoPath,
       'detailsPhotoPath': detailsPhotoPath,
       'geoTagLocation': geoTagLocation,
+      if (checklistPhotos != null) 'checklistPhotos': checklistPhotos,
     };
   }
 }

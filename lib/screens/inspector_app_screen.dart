@@ -24,7 +24,7 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
   // Photo evidence state
   File? _sitePhoto;
   String? _sitePhotoGeoTag;
-  File? _detailsPhoto;
+  final Map<String, File?> _checklistPhotos = {};
   final ImagePicker _picker = ImagePicker();
 
   // Statutory Checklist Items
@@ -265,16 +265,24 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('PHYSICAL PRESENCE VERIFICATION (CAMERA)', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                    Flexible(
+                      child: Text(
+                        'PHYSICAL PRESENCE VERIFICATION',
+                        style: GoogleFonts.outfit(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
                     if (_sitePhoto != null)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(color: Colors.greenAccent.withOpacity(0.15), borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.greenAccent.withOpacity(0.5))),
+                        decoration: BoxDecoration(color: Colors.greenAccent.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.5))),
                         child: const Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(Icons.check_circle, color: Colors.greenAccent, size: 12),
                             SizedBox(width: 4),
-                            Text('GEOTAG CONFIRMED', style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
+                            Text('GEOTAGGED', style: TextStyle(color: Colors.greenAccent, fontSize: 10, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -360,97 +368,160 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
                         ],
                       ),
 
-                      const Divider(color: Colors.white10, height: 24),
-
-                      // Photo 2: Option to add photo of confirmed checklist / register details
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          GestureDetector(
-                            onTap: canPerformInspection ? _captureDetailsPhoto : null,
-                            child: Container(
-                              width: 90,
-                              height: 90,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF182232),
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: _detailsPhoto != null ? Colors.tealAccent : Colors.cyanAccent.withOpacity(0.6)),
-                                image: _detailsPhoto != null
-                                    ? DecorationImage(image: FileImage(_detailsPhoto!), fit: BoxFit.cover)
-                                    : null,
-                              ),
-                              child: _detailsPhoto == null
-                                  ? Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(Icons.add_a_photo_rounded, color: canPerformInspection ? Colors.cyanAccent : Colors.white24, size: 28),
-                                        const SizedBox(height: 4),
-                                        Text('CONFIRMED\nDETAILS', textAlign: TextAlign.center, style: TextStyle(color: canPerformInspection ? Colors.cyanAccent : Colors.white24, fontSize: 9, fontWeight: FontWeight.bold)),
-                                      ],
-                                    )
-                                  : Align(
-                                      alignment: Alignment.bottomRight,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(3),
-                                        decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
-                                        child: const Icon(Icons.edit, color: Colors.tealAccent, size: 14),
-                                      ),
-                                    ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text('2. Confirmed Details Photo Evidence', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _detailsPhoto != null
-                                      ? 'Register / biometric terminal record photo attached and linked to statutory checklist verification.'
-                                      : 'Add photo of physical registers, turnstile displays, faculty certificates, or verified documents.',
-                                  style: const TextStyle(color: Colors.white60, fontSize: 11),
-                                ),
-                                if (_detailsPhoto != null) ...[
-                                  const SizedBox(height: 6),
-                                  const Text('✅ Register Proof Attached & Saved to DB', style: TextStyle(color: Colors.cyanAccent, fontSize: 10, fontWeight: FontWeight.bold)),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
+                      // Mandatory Site Geotag Photo remains as primary physical presence anchor
                     ],
                   ),
                 ),
 
                 const SizedBox(height: 18),
 
-                // 4. Statutory Physical Inspection Checklist
-                Text('STATUTORY GOVERNMENT CHECKLIST', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
+                // 4. Statutory Physical Inspection Checklist with Per-Item Photo Evidence
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text('STATUTORY GOVERNMENT CHECKLIST', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
+                    Text(
+                      'PHOTO EVIDENCE MANDATORY',
+                      style: GoogleFonts.outfit(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Every ticked compliance item requires at least 1 photo verification proof to complete submission.',
+                  style: TextStyle(color: Colors.white54, fontSize: 11),
+                ),
+                const SizedBox(height: 10),
 
                 ..._checklist.entries.map((entry) {
+                  final key = entry.key;
+                  final isChecked = entry.value;
+                  final hasPhoto = _checklistPhotos.containsKey(key) && _checklistPhotos[key] != null;
+                  final photoFile = hasPhoto ? _checklistPhotos[key]! : null;
+
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 6),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: const Color(0xFF0D141E),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: const Color(0xFF182433)),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: isChecked
+                            ? (hasPhoto ? Colors.tealAccent.withValues(alpha: 0.5) : Colors.orangeAccent.withValues(alpha: 0.7))
+                            : const Color(0xFF182433),
+                        width: isChecked ? 1.2 : 1.0,
+                      ),
                     ),
-                    child: CheckboxListTile(
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      activeColor: Colors.tealAccent,
-                      checkColor: Colors.black,
-                      title: Text(entry.key, style: const TextStyle(color: Colors.white, fontSize: 12)),
-                      value: entry.value,
-                      onChanged: canPerformInspection
-                          ? (val) {
-                              setState(() => _checklist[entry.key] = val ?? false);
-                            }
-                          : null,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        CheckboxListTile(
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                          activeColor: Colors.tealAccent,
+                          checkColor: Colors.black,
+                          title: Text(
+                            key,
+                            style: TextStyle(
+                              color: isChecked ? Colors.white : Colors.white70,
+                              fontSize: 12.5,
+                              fontWeight: isChecked ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                          value: isChecked,
+                          onChanged: canPerformInspection
+                              ? (val) {
+                                  setState(() => _checklist[key] = val ?? false);
+                                }
+                              : null,
+                        ),
+                        if (isChecked) ...[
+                          const SizedBox(height: 6),
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF141C28),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: hasPhoto ? Colors.tealAccent.withValues(alpha: 0.3) : Colors.orangeAccent.withValues(alpha: 0.3),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: canPerformInspection ? () => _captureChecklistPhoto(key) : null,
+                                  child: Container(
+                                    width: 60,
+                                    height: 60,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1B2433),
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(
+                                        color: hasPhoto ? Colors.tealAccent : Colors.orangeAccent,
+                                      ),
+                                      image: photoFile != null
+                                          ? DecorationImage(image: FileImage(photoFile), fit: BoxFit.cover)
+                                          : null,
+                                    ),
+                                    child: photoFile == null
+                                        ? Column(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              Icon(Icons.add_a_photo, color: canPerformInspection ? Colors.orangeAccent : Colors.white24, size: 20),
+                                              const SizedBox(height: 2),
+                                              const Text('PHOTO*', textAlign: TextAlign.center, style: TextStyle(color: Colors.orangeAccent, fontSize: 8, fontWeight: FontWeight.bold)),
+                                            ],
+                                          )
+                                        : Align(
+                                            alignment: Alignment.bottomRight,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(2),
+                                              decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
+                                              child: const Icon(Icons.edit, color: Colors.tealAccent, size: 12),
+                                            ),
+                                          ),
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        hasPhoto ? 'Photo Evidence Recorded' : 'Mandatory Evidence Required',
+                                        style: TextStyle(
+                                          color: hasPhoto ? Colors.tealAccent : Colors.orangeAccent,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        hasPhoto
+                                            ? 'Verified photo saved for statutory audit validation & AI verification.'
+                                            : 'Tap box to capture mandatory photo proof for this specific requirement.',
+                                        style: const TextStyle(color: Colors.white60, fontSize: 10),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                TextButton.icon(
+                                  style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                    backgroundColor: hasPhoto ? Colors.teal.withValues(alpha: 0.15) : Colors.orange.withValues(alpha: 0.15),
+                                  ),
+                                  icon: Icon(hasPhoto ? Icons.refresh : Icons.camera_alt, size: 14, color: hasPhoto ? Colors.tealAccent : Colors.orangeAccent),
+                                  label: Text(
+                                    hasPhoto ? 'Retake' : 'Capture',
+                                    style: TextStyle(color: hasPhoto ? Colors.tealAccent : Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                  onPressed: canPerformInspection ? () => _captureChecklistPhoto(key) : null,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   );
                 }),
@@ -551,16 +622,19 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
     }
   }
 
-  Future<void> _captureDetailsPhoto() async {
+  Future<void> _captureChecklistPhoto(String checklistKey) async {
     try {
       final picked = await _picker.pickImage(source: ImageSource.camera, maxWidth: 1280, maxHeight: 1280, imageQuality: 85);
       if (picked != null) {
         setState(() {
-          _detailsPhoto = File(picked.path);
+          _checklistPhotos[checklistKey] = File(picked.path);
         });
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('📸 Confirmed register/checklist photo proof recorded & attached.'), backgroundColor: Colors.teal),
+            SnackBar(
+              content: Text('📸 Photo recorded for: "${checklistKey.length > 30 ? checklistKey.substring(0, 30) + "..." : checklistKey}"'),
+              backgroundColor: Colors.teal,
+            ),
           );
         }
       }
@@ -620,12 +694,93 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
   }
 
   void _submitInspectionReport(BuildContext context, ZoneModel zone, bool isWithin200m, double distance) async {
+    // 1. Mandatory Site Geotag Photo Check
+    if (_sitePhoto == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⚠️ Mandatory: Please capture the Site Geotag Photo (Camera) before submitting!'),
+          backgroundColor: Colors.orangeAccent,
+          duration: Duration(seconds: 4),
+        ),
+      );
+      return;
+    }
+
+    // 2. Mandatory Check: Every ticked checklist item must have at least 1 photo evidence
+    final missingPhotoItems = <String>[];
+    for (final entry in _checklist.entries) {
+      if (entry.value) {
+        if (!_checklistPhotos.containsKey(entry.key) || _checklistPhotos[entry.key] == null) {
+          missingPhotoItems.add(entry.key);
+        }
+      }
+    }
+
+    if (missingPhotoItems.isNotEmpty) {
+      showDialog(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: const Color(0xFF131920),
+          title: Row(
+            children: const [
+              Icon(Icons.add_a_photo, color: Colors.orangeAccent, size: 20),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Checklist Photo Evidence Missing',
+                  style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'At least 1 photo is strictly required under EVERY checked item to complete the statutory dossier:\n',
+                style: TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+              ...missingPhotoItems.take(4).map((item) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4.0),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text('• ', style: TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold)),
+                        Expanded(child: Text(item, style: const TextStyle(color: Colors.white, fontSize: 11))),
+                      ],
+                    ),
+                  )),
+              if (missingPhotoItems.length > 4)
+                Text('...and ${missingPhotoItems.length - 4} more items.', style: const TextStyle(color: Colors.white54, fontSize: 10)),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('OK, TAKE PHOTOS'),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     final physicalCount = int.tryParse(_physicalHeadcountController.text) ?? 60;
     final reported = zone.expectedCount;
     final aiDetected = zone.detectedCount;
     final aiDiscrepancy = reported - aiDetected;
     final physicalDiscrepancy = reported - physicalCount;
     final compliance = ((physicalCount / (reported > 0 ? reported : 1)) * 100).clamp(0, 100).toInt();
+
+    // Map photo paths for checklist items
+    final Map<String, String> checklistPhotoPaths = {};
+    for (final entry in _checklistPhotos.entries) {
+      if (entry.value != null) {
+        checklistPhotoPaths[entry.key] = entry.value!.path;
+      }
+    }
 
     showModalBottomSheet(
       context: context,
@@ -643,7 +798,7 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
                 children: [
                   const Icon(Icons.assignment_turned_in, color: Colors.tealAccent, size: 24),
                   const SizedBox(width: 10),
-                  Text('INSPECTION REPORT GENERATED', style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  Text('INSPECTION REPORT & JSON DOSSIER', style: GoogleFonts.outfit(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                 ],
               ),
               const SizedBox(height: 14),
@@ -683,7 +838,7 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: _sitePhoto != null ? Colors.teal.withOpacity(0.2) : Colors.red.withOpacity(0.2),
+                              color: _sitePhoto != null ? Colors.teal.withValues(alpha: 0.2) : Colors.red.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(4),
                               border: Border.all(color: _sitePhoto != null ? Colors.tealAccent : Colors.redAccent),
                             ),
@@ -691,7 +846,7 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
                               children: [
                                 Icon(_sitePhoto != null ? Icons.check_circle : Icons.warning_amber_rounded, size: 14, color: _sitePhoto != null ? Colors.tealAccent : Colors.redAccent),
                                 const SizedBox(width: 4),
-                                Expanded(child: Text(_sitePhoto != null ? 'Site Geotag Photo Attached' : 'No Geotag Photo', style: TextStyle(color: _sitePhoto != null ? Colors.tealAccent : Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold))),
+                                Expanded(child: Text(_sitePhoto != null ? 'Site Geotag Photo' : 'No Geotag Photo', style: TextStyle(color: _sitePhoto != null ? Colors.tealAccent : Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold))),
                               ],
                             ),
                           ),
@@ -701,15 +856,15 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
                           child: Container(
                             padding: const EdgeInsets.all(6),
                             decoration: BoxDecoration(
-                              color: _detailsPhoto != null ? Colors.cyan.withOpacity(0.2) : Colors.grey.withOpacity(0.2),
+                              color: Colors.cyan.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(4),
-                              border: Border.all(color: _detailsPhoto != null ? Colors.cyanAccent : Colors.white24),
+                              border: Border.all(color: Colors.cyanAccent),
                             ),
                             child: Row(
                               children: [
-                                Icon(_detailsPhoto != null ? Icons.check_circle : Icons.info_outline, size: 14, color: _detailsPhoto != null ? Colors.cyanAccent : Colors.white54),
+                                const Icon(Icons.photo_library, size: 14, color: Colors.cyanAccent),
                                 const SizedBox(width: 4),
-                                Expanded(child: Text(_detailsPhoto != null ? 'Register Photo Attached' : 'Register Photo Optional', style: TextStyle(color: _detailsPhoto != null ? Colors.cyanAccent : Colors.white70, fontSize: 10, fontWeight: FontWeight.bold))),
+                                Expanded(child: Text('${checklistPhotoPaths.length} Checklist Photos Saved', style: const TextStyle(color: Colors.cyanAccent, fontSize: 10, fontWeight: FontWeight.bold))),
                               ],
                             ),
                           ),
@@ -720,7 +875,7 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(6),
-                      color: Colors.redAccent.withOpacity(0.15),
+                      color: Colors.redAccent.withValues(alpha: 0.15),
                       child: Text('RESULT: ${physicalDiscrepancy > 5 ? "NON-COMPLIANT (DISCREPANCY DETECTED)" : "COMPLIANT"}', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 10)),
                     ),
                   ],
@@ -731,8 +886,8 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.teal, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
-                  icon: const Icon(Icons.send_rounded, size: 16),
-                  label: const Text('SUBMIT FOR OFFICIAL MINISTRY REVIEW', style: TextStyle(fontWeight: FontWeight.bold)),
+                  icon: const Icon(Icons.cloud_upload_rounded, size: 18),
+                  label: const Text('GENERATE JSON & UPLOAD TO APPWRITE DATABASE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                   onPressed: () async {
                     await ref.read(inspectionActionControllerProvider.notifier).submitInspectionLog(
                       zoneId: zone.id,
@@ -743,13 +898,17 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
                       gpsDistanceMeters: distance,
                       geoOverrideReason: !isWithin200m ? _overrideReasonController.text : null,
                       sitePhotoPath: _sitePhoto?.path,
-                      detailsPhotoPath: _detailsPhoto?.path,
                       geoTagLocation: _sitePhotoGeoTag,
+                      checklistPhotos: checklistPhotoPaths,
                     );
                     if (context.mounted) {
                       Navigator.pop(context);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('✅ Dossier officially stamped, evidence photos attached & saved permanently to database!'), backgroundColor: Colors.teal),
+                        const SnackBar(
+                          content: Text('✅ Exported to JSON file & synced all photos to Appwrite Database!'),
+                          backgroundColor: Colors.teal,
+                          duration: Duration(seconds: 4),
+                        ),
                       );
                     }
                   },
