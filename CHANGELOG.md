@@ -5,6 +5,15 @@ All notable changes to the **DrishtiSetu** (Attendance & Surveillance Sentinel) 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.2.2] - 2026-09-07 (version-5.2.2)
+
+### Added & Enhanced
+- **Navigation & UX Improvements**:
+  - Added dedicated **Back to Login (`Icons.arrow_back_ios_new_rounded`)** navigation button directly on the main Dashboard AppBar.
+  - Allows seamless switching between Auditor and Inspector role profiles without restarting the application.
+
+---
+
 ## [5.2.1] - 2026-09-07 (version-5.2.1)
 
 ### Improved & Fixed

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../models/zone_model.dart';
 import '../providers/audit_providers.dart';
 import 'inspection_screen.dart';
+import 'login_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -21,6 +22,16 @@ class DashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: const Color(0xFF131920),
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: Colors.white70, size: 20),
+          tooltip: 'Back to Login',
+          onPressed: () {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const LoginScreen()),
+            );
+          },
+        ),
         title: zonesAsync.when(
           data: (zones) {
             if (zones.isEmpty) {
