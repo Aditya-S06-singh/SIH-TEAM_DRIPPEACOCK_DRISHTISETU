@@ -1,4 +1,4 @@
-# 🏛️ DrishtiSetu (दृष्टिसेतु) — Complete Architecture, Codebase Breakdown & Hackathon Defense Guide
+# 🏛️ DrishtiSetu (दृष्टिसेतु) — Complete Architecture, Codebase Breakdown & 
 
 > **Smart India Hackathon (SIH) | Problem Statement 26095**  
 > **Target Department:** Department of Social Justice & Empowerment (DoSJE), Government of India.  
