@@ -16,7 +16,6 @@
    - [D. Hardware Intercom & Talkback (`live_mic_intercom.py` & Android JNI/AudioTrack)](#d-hardware-intercom--talkback)
 4. [Critical Breakpoints & Failure Modes Analysis (What Can Go Wrong & How We Handled It)](#4-critical-breakpoints--failure-modes-analysis)
 5. [Data Flow Sequence: Turnstile to Cloud to Inspector](#5-data-flow-sequence-turnstile-to-cloud-to-inspector)
-6. [Hackathon Pitch & LARP Script (Defending in Front of Jury)](#6-hackathon-pitch--larp-script)
 
 ---
 
