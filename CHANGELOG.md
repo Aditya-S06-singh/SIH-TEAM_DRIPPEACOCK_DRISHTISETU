@@ -5,6 +5,17 @@ All notable changes to the **DrishtiSetu** (Attendance & Surveillance Sentinel) 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.2.3] - 2026-09-07 (version-5.2.3)
+
+### Fixed & Optimized
+- **Non-Blocking Background Cloud Synchronization**:
+  - Re-architected Appwrite database headcount sync in `yolo_camera_counter.py` to run asynchronously in a daemon background worker thread.
+  - Eliminates network/SSL latency blocks inside the main OpenCV vision loop, completely resolving model hangs and freezes.
+- **Port Forwarding & Connection Resilience**:
+  - Verified and stabilized ADB TCP reverse/forward tunnels (`8088` and `8089`) for zero-lag local stream ingestion.
+
+---
+
 ## [5.2.2] - 2026-09-07 (version-5.2.2)
 
 ### Added & Enhanced
