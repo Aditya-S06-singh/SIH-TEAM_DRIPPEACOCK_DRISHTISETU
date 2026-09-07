@@ -379,10 +379,26 @@ class _InspectorAppScreenState extends ConsumerState<InspectorAppScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('STATUTORY GOVERNMENT CHECKLIST', style: GoogleFonts.outfit(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold)),
-                    Text(
-                      'PHOTO EVIDENCE MANDATORY',
-                      style: GoogleFonts.outfit(color: Colors.orangeAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                    Expanded(
+                      child: Text(
+                        'STATUTORY GOVERNMENT CHECKLIST',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.outfit(color: Colors.white70, fontSize: 11.5, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.orangeAccent.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(color: Colors.orangeAccent.withValues(alpha: 0.4)),
+                      ),
+                      child: Text(
+                        'PHOTO MANDATORY',
+                        style: GoogleFonts.outfit(color: Colors.orangeAccent, fontSize: 9.5, fontWeight: FontWeight.bold),
+                      ),
                     ),
                   ],
                 ),
