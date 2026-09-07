@@ -5,7 +5,7 @@ All notable changes to the **DrishtiSetu** (Attendance & Surveillance Sentinel) 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [5.4.0] - 2026-09-07 (version-5.4)
+## [5.4.0] - 2026-09-07 (version-5.4 Prototype Version)
 
 ### Fixed & Enhanced
 - **Pixel Overflow Resolution**:
