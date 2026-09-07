@@ -267,24 +267,3 @@ Government institutions, residential schools (EMRS), de-addiction centers, and t
 
 ---
 
-## 6. Hackathon Pitch & LARP Script (Defending in Front of Jury)
-
-### The 60-Second Hook (Opening)
-> *"Judges, the Ministry of Social Justice & Empowerment allocates thousands of crores annually to residential hostels, vocational centers, and rehabilitation facilities. Yet, the single largest vulnerability remains **Ghost Beneficiaries**—institutions reporting 100 students on paper while barely 40 are present, siphoning DBT funds and meal allocations.*
-> 
-> *Current biometric turnstiles fail because cards are proxy-swiped at the gate. Traditional CCTV fails because no human can monitor hundreds of live video streams.*
-> 
-> *We built **DrishtiSetu**—an autonomous, edge-intelligence surveillance sentinel that bridges the gap between gate turnstiles and real-time room occupancy."*
-
-### Live Demonstration Walkthrough (The Action)
-1. **Show the Dashboard:**
-   > *"Notice the Central Assembly Hall. Gate turnstiles recorded 23 biometric check-ins today. But look at our live YOLO11n AI stream—it only detects 14 people inside the hall. The discrepancy engine immediately calculates a deficit of 9 and flags this zone as **CRITICAL**."*
-2. **Show the Live Inspection Console:**
-   > *"The auditor doesn't need to guess. With one tap on **Live Inspection**, we stream the edge camera feed with persistent AI bounding box tracking in real-time. Notice the HUD: headcount, FPS, and timestamps are rendered directly on the frame."*
-3. **Show Surprise Intercom & WhatsApp Dispatch:**
-   > *"If the auditor suspects fraud, they can trigger an immediate surprise inspection. With 1-Tap **WhatsApp VC**, an official DoSJE legal inspection notice is generated and dispatched to the facility head's phone while initiating a live video audit. They can also use our **Two-Way Intercom** to broadcast directly to the facility loudspeakers."*
-4. **Show Tamper-Proof Dossier & Geo-Fencing:**
-   > *"Finally, when our field inspector arrives on site, the app enforces a strict **200-meter GPS geo-fence**. They cannot submit an audit from home. Once completed, a cryptographically signed, immutable **JSON Audit Dossier** is pushed to the cloud, creating an indisputable paper trail for ministry action."*
-
-### The Technical Closer (Defending the Tech Stack)
-> *"Our architecture is lightweight, edge-native, and fault-tolerant. We run Ultralytics YOLO11n on local edge nodes with frame-skipping optimizations for smooth 30+ FPS performance, sync via Appwrite Cloud, and support both Android hardware cameras and industrial RTSP streams without relying on expensive proprietary hardware. DrishtiSetu turns any standard smartphone or CCTV camera into an anti-fraud sentinel."*
